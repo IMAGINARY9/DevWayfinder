@@ -1,0 +1,117 @@
+# DevWayfinder Example Configuration
+#
+# Copy this file to .devwayfinder/config.yaml in your project
+# or to ~/.devwayfinder/config.yaml for user-level settings.
+#
+# See docs/CONFIGURATION.md for full documentation.
+
+# ----------------------------------------------------------------------------
+# MODEL CONFIGURATION
+# ----------------------------------------------------------------------------
+model:
+  # LLM provider: ollama | openai | heuristic
+  provider: ollama
+  
+  # Model identifier (depends on provider)
+  model_name: mistral:7b
+  
+  # API endpoint URL
+  base_url: http://localhost:11434
+  
+  # API key (required for cloud providers, leave empty for local)
+  # api_key: sk-...
+  
+  # Request timeout in seconds
+  timeout: 120
+  
+  # Maximum tokens per summary
+  max_tokens: 512
+  
+  # Sampling temperature (0.0-1.0, lower = more deterministic)
+  temperature: 0.3
+
+# ----------------------------------------------------------------------------
+# ANALYSIS CONFIGURATION
+# ----------------------------------------------------------------------------
+analysis:
+  # Glob patterns for files to include
+  include_patterns:
+    - "**/*.py"
+    - "**/*.ts"
+    - "**/*.tsx"
+    - "**/*.js"
+    - "**/*.jsx"
+  
+  # Glob patterns to exclude
+  exclude_patterns:
+    - "**/node_modules/**"
+    - "**/.venv/**"
+    - "**/venv/**"
+    - "**/dist/**"
+    - "**/build/**"
+    - "**/__pycache__/**"
+    - "**/*.egg-info/**"
+    - "**/.git/**"
+    - "**/.devwayfinder/**"
+  
+  # Maximum file size to analyze (bytes)
+  max_file_size: 100000
+  
+  # Enable git history analysis
+  enable_git_analysis: true
+  
+  # Enable complexity metrics
+  enable_metrics: true
+  
+  # Analysis layers in priority order
+  # tree_sitter: Most accurate, requires grammar
+  # ast: Python-specific AST parsing
+  # regex: Pattern matching fallback
+  # llm: Semantic analysis via LLM
+  analysis_layers:
+    - tree_sitter
+    - ast
+    - regex
+    - llm
+
+# ----------------------------------------------------------------------------
+# OUTPUT CONFIGURATION
+# ----------------------------------------------------------------------------
+output:
+  # Output format: markdown | html | json
+  format: markdown
+  
+  # Output file path (null = stdout)
+  output_path: null
+  
+  # Include dependency graph visualization
+  include_graph: true
+  
+  # Include complexity metrics
+  include_metrics: true
+  
+  # Graph format: mermaid | ascii | dot
+  graph_format: mermaid
+
+# ----------------------------------------------------------------------------
+# CACHE CONFIGURATION
+# ----------------------------------------------------------------------------
+cache:
+  # Enable caching
+  enabled: true
+  
+  # Cache directory (relative to project root)
+  directory: .devwayfinder/cache
+  
+  # Cache entry time-to-live in days
+  ttl_days: 30
+
+# ----------------------------------------------------------------------------
+# LOGGING CONFIGURATION
+# ----------------------------------------------------------------------------
+logging:
+  # Log level: DEBUG | INFO | WARNING | ERROR
+  level: INFO
+  
+  # Log file path (null = stderr)
+  file: null

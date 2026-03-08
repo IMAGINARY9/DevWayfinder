@@ -1,0 +1,215 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "devwayfinder"
+version = "0.1.0"
+description = "AI-Powered Developer Onboarding Generator"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "IMAGINARY9"}
+]
+keywords = [
+    "onboarding",
+    "documentation",
+    "code-analysis",
+    "developer-tools",
+    "llm",
+    "ai"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    # CLI
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    
+    # Data validation
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    
+    # HTTP client
+    "httpx>=0.25.0",
+    
+    # Async support
+    "aiofiles>=23.0.0",
+    
+    # Configuration
+    "pyyaml>=6.0",
+    "tomli>=2.0.0;python_version<'3.11'",
+    
+    # Graph algorithms
+    "networkx>=3.0",
+    
+    # Git integration
+    "gitpython>=3.1.0",
+    
+    # Utilities
+    "pathspec>=0.11.0",  # Gitignore-style matching
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.11.0",
+    "respx>=0.20.0",  # HTTP mocking for httpx
+    
+    # Linting & formatting
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+    
+    # Type stubs
+    "types-pyyaml>=6.0.0",
+    "types-aiofiles>=23.0.0",
+]
+
+tree-sitter = [
+    # Tree-sitter integration (optional)
+    "tree-sitter>=0.20.0",
+    "tree-sitter-python>=0.20.0",
+    "tree-sitter-typescript>=0.20.0",
+    "tree-sitter-javascript>=0.20.0",
+]
+
+all = [
+    "devwayfinder[dev,tree-sitter]",
+]
+
+[project.scripts]
+devwayfinder = "devwayfinder.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/IMAGINARY9/DevWayfinder"
+Repository = "https://github.com/IMAGINARY9/DevWayfinder"
+Documentation = "https://github.com/IMAGINARY9/DevWayfinder#readme"
+Issues = "https://github.com/IMAGINARY9/DevWayfinder/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+devwayfinder = ["py.typed", "templates/*.yaml"]
+
+# ============================================================================
+# RUFF CONFIGURATION
+# ============================================================================
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "PTH",    # flake8-use-pathlib
+    "RUF",    # Ruff-specific rules
+]
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "B008",   # Do not perform function calls in argument defaults
+    "ARG001", # Unused function argument (needed for protocols)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["devwayfinder"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "ARG001",  # Unused arguments in test fixtures
+]
+
+# ============================================================================
+# MYPY CONFIGURATION
+# ============================================================================
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+show_error_codes = true
+namespace_packages = true
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = [
+    "networkx.*",
+    "git.*",
+    "tree_sitter.*",
+]
+ignore_missing_imports = true
+
+# ============================================================================
+# PYTEST CONFIGURATION
+# ============================================================================
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = [
+    "-ra",
+    "-q",
+    "--strict-markers",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+# ============================================================================
+# COVERAGE CONFIGURATION
+# ============================================================================
+
+[tool.coverage.run]
+source = ["src/devwayfinder"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@abstractmethod",
+    "\\.\\.\\.",
+]
+fail_under = 80
+show_missing = true
