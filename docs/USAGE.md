@@ -11,19 +11,54 @@
 
 DevWayfinder uses large language models (LLMs) to generate natural-language summaries of code modules. The system is designed to be **model-agnostic** and **offline-first**, supporting:
 
-- **Local models** via Ollama or llama.cpp
-- **Self-hosted APIs** via text-generation-webui, vLLM
-- **Cloud APIs** via OpenAI-compatible endpoints
+- **Self-hosted OpenAI-compatible APIs** via text-generation-webui, vLLM, LM Studio-style endpoints
+- **Local models** via Ollama
+- **Cloud APIs** via official OpenAI and other remote providers added through the provider abstraction
 
 The tool works without an LLM by using heuristic summaries, but LLM-generated descriptions are significantly more useful.
 
 ---
 
-## 2. Recommended Setup: Ollama
+## 2. Recommended Local Setup: OpenAI-Compatible Endpoint
+
+The currently validated local setup is a self-hosted OpenAI-compatible endpoint exposed by text-generation-webui at `http://127.0.0.1:5000/v1`.
+
+DevWayfinder does not depend on that specific server implementation. Any endpoint that implements the standard `/models` and `/chat/completions` routes can be used through the same provider.
+
+### 2.1 Default Local Configuration
+
+```yaml
+model:
+  provider: openai_compat
+  model_name: null          # optional for local servers that use a loaded default model
+  base_url: http://127.0.0.1:5000/v1
+  api_key: local
+  timeout: 120
+  max_tokens: 512
+  temperature: 0.3
+```
+
+### 2.2 Verify Connection
+
+```bash
+# DevWayfinder CLI
+devwayfinder test-model --provider openai_compat --base-url http://127.0.0.1:5000/v1
+
+# Standalone diagnostic script
+python scripts/test_llm_connection.py
+```
+
+### 2.3 Reference Local Setup
+
+The detailed Windows setup, startup commands, environment variables, and troubleshooting notes for this local backend are maintained in the external onboarding notes you attached. This repository does not duplicate that full setup guide.
+
+---
+
+## 3. Alternative Local Setup: Ollama
 
 [Ollama](https://ollama.ai/) is the recommended backend for local LLM inference.
 
-### 2.1 Installation
+### 3.1 Installation
 
 **Windows:**
 ```powershell
@@ -42,7 +77,7 @@ curl -fsSL https://ollama.ai/install.sh | sh
 brew install ollama
 ```
 
-### 2.2 Pull a Model
+### 3.2 Pull a Model
 
 DevWayfinder works best with 7B parameter models:
 
@@ -57,7 +92,7 @@ ollama pull llama3.2:8b
 ollama pull phi3:mini
 ```
 
-### 2.3 Start Ollama Server
+### 3.3 Start Ollama Server
 
 ```bash
 # Ollama runs as a background service by default
@@ -68,11 +103,11 @@ ollama list
 ollama serve
 ```
 
-### 2.4 Verify Connection
+### 3.4 Verify Connection
 
 ```bash
 # Using DevWayfinder CLI
-devwayfinder test-model
+devwayfinder test-model --provider ollama --model mistral:7b
 
 # Or directly test Ollama
 curl http://localhost:11434/api/tags
@@ -80,7 +115,7 @@ curl http://localhost:11434/api/tags
 
 ---
 
-## 3. Configuration
+## 4. Configuration
 
 ### 3.1 Default Configuration
 
@@ -88,9 +123,10 @@ If no configuration is provided, DevWayfinder uses:
 
 ```yaml
 model:
-  provider: ollama
-  model_name: mistral:7b
-  base_url: http://localhost:11434
+  provider: openai_compat
+  model_name: null
+  base_url: http://127.0.0.1:5000/v1
+  api_key: local
   timeout: 120
   max_tokens: 512
 ```
@@ -101,9 +137,10 @@ Create `.devwayfinder/config.yaml` in your project:
 
 ```yaml
 model:
-  provider: ollama           # ollama | openai | heuristic
-  model_name: mistral:7b     # Model identifier
-  base_url: http://localhost:11434
+  provider: openai_compat    # openai_compat | openai | ollama | heuristic
+  model_name: null           # Provider-dependent; required for official OpenAI
+  base_url: http://127.0.0.1:5000/v1
+  api_key: local
   timeout: 120               # Request timeout in seconds
   max_tokens: 512            # Max tokens per summary
   temperature: 0.3           # Lower = more deterministic
@@ -115,28 +152,27 @@ Override config with environment variables:
 
 ```bash
 # Windows PowerShell
-$env:DEVWAYFINDER_MODEL_PROVIDER = "ollama"
-$env:DEVWAYFINDER_MODEL_NAME = "mistral:7b"
-$env:DEVWAYFINDER_MODEL_BASE_URL = "http://localhost:11434"
+$env:DEVWAYFINDER_MODEL_PROVIDER = "openai_compat"
+$env:DEVWAYFINDER_MODEL_BASE_URL = "http://127.0.0.1:5000/v1"
+$env:DEVWAYFINDER_API_KEY = "local"
 
 # Linux/macOS
-export DEVWAYFINDER_MODEL_PROVIDER=ollama
-export DEVWAYFINDER_MODEL_NAME=mistral:7b
-export DEVWAYFINDER_MODEL_BASE_URL=http://localhost:11434
+export DEVWAYFINDER_MODEL_PROVIDER=openai_compat
+export DEVWAYFINDER_MODEL_BASE_URL=http://127.0.0.1:5000/v1
+export DEVWAYFINDER_API_KEY=local
 ```
 
 ### 3.4 CLI Override
 
 ```bash
 devwayfinder generate ./project \
-  --model-provider ollama \
-  --model-name mistral:7b \
-  --base-url http://localhost:11434
+  --model-provider openai_compat \
+  --base-url http://127.0.0.1:5000/v1
 ```
 
 ---
 
-## 4. Alternative Backends
+## 5. Alternative Backends
 
 ### 4.1 text-generation-webui (OpenAI-compatible)
 
@@ -151,10 +187,10 @@ python server.py --api --api-port 5000
 **Configuration:**
 ```yaml
 model:
-  provider: openai
-  model_name: default        # Ignored by TGWUI
+  provider: openai_compat
+  model_name: default        # Ignored by many local servers
   base_url: http://localhost:5000/v1
-  api_key: ""                # Not required for local
+  api_key: local
 ```
 
 ### 4.2 vLLM
@@ -171,12 +207,12 @@ python -m vllm.entrypoints.openai.api_server \
 **Configuration:**
 ```yaml
 model:
-  provider: openai
+  provider: openai_compat
   model_name: mistralai/Mistral-7B-Instruct-v0.2
   base_url: http://localhost:8000/v1
 ```
 
-### 4.3 Cloud APIs (OpenAI, Anthropic)
+### 5.3 Cloud APIs (Official OpenAI)
 
 For cloud APIs, set the API key via environment variable:
 
@@ -191,11 +227,13 @@ model:
   base_url: https://api.openai.com/v1
 ```
 
+Remote official providers are accessed through the same provider abstraction used by local endpoints. Additional official providers can be added by implementing the shared `ModelProvider` contract and registering them in the provider factory.
+
 > ⚠️ **Privacy Warning:** Cloud APIs send code snippets to external servers. Use local models for sensitive codebases.
 
 ---
 
-## 5. Model Recommendations
+## 6. Model Recommendations
 
 | Use Case | Model | Notes |
 |----------|-------|-------|
@@ -216,7 +254,7 @@ model:
 
 ---
 
-## 6. Offline / Heuristic Mode
+## 7. Offline / Heuristic Mode
 
 DevWayfinder can operate without an LLM:
 
@@ -233,7 +271,7 @@ Quality is lower but the tool remains functional for basic exploration.
 
 ---
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 ### Connection Issues
 
@@ -268,7 +306,7 @@ ollama serve
 
 ---
 
-## 8. Provider Interface
+## 9. Provider Interface
 
 DevWayfinder abstracts LLM backends behind a `ModelProvider` protocol:
 
@@ -289,7 +327,7 @@ To add a new provider, see [ARCHITECTURE.md](ARCHITECTURE.md) § Extension Point
 
 ---
 
-## 9. Caching
+## 10. Caching
 
 LLM responses are cached to avoid redundant API calls:
 

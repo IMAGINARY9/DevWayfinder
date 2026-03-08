@@ -50,7 +50,7 @@ DevWayfinder analyzes codebases to produce structured onboarding guides with:
 |-----------|------------|
 | CLI | Python 3.11+, Typer, Rich |
 | Analysis | AST, Tree-sitter (optional), networkx |
-| LLM | Ollama (local) / OpenAI-compatible APIs |
+| LLM | OpenAI-compatible APIs, Ollama, official OpenAI |
 | Config | Pydantic, YAML |
 | Testing | pytest, pytest-asyncio |
 
@@ -149,25 +149,27 @@ Key deliverables:
 - [x] Core domain models (Module, Project, DependencyGraph, Guide)
 - [x] Protocol definitions (Analyzer, Provider, Generator)
 - [ ] Python import/export analyzer
-- [ ] LLM provider (Ollama)
-- [ ] Heuristic fallback provider
+- [x] LLM providers (OpenAI-compatible, Ollama, official OpenAI)
+- [x] Heuristic fallback provider
 - [ ] Guide generator
-- [ ] CLI commands (analyze, generate, test-model)
+- [ ] CLI commands (analyze, generate)
+- [x] CLI command (test-model)
 - [ ] Caching layer
 
-**Next steps:** Implement Python analyzer and Ollama provider
+**Next steps:** Implement Python analyzer and guide generation pipeline
 
 ---
 
 ## 🔌 LLM Configuration
 
-Default configuration for local Ollama:
+Default configuration for the validated local OpenAI-compatible setup:
 
 ```yaml
 model:
-  provider: ollama
-  model_name: mistral:7b
-  base_url: http://localhost:11434
+  provider: openai_compat
+  model_name: null
+  base_url: http://127.0.0.1:5000/v1
+  api_key: local
   timeout: 120
   max_tokens: 512
 ```
@@ -176,7 +178,7 @@ model:
 
 Test connection:
 ```bash
-devwayfinder test-model
+devwayfinder test-model --provider openai_compat --base-url http://127.0.0.1:5000/v1
 ```
 
 ---

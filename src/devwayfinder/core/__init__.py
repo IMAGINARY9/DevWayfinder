@@ -1,34 +1,32 @@
 """Core domain models and interfaces."""
 
-from devwayfinder.core.models import Module, ModuleType, Project
+from devwayfinder.core.exceptions import (
+    AnalysisError,
+    ConfigurationError,
+    DevWayfinderError,
+    GenerationError,
+    ProviderError,
+)
 from devwayfinder.core.graph import DependencyGraph
 from devwayfinder.core.guide import OnboardingGuide, Section, SectionType
+from devwayfinder.core.models import Module, ModuleType, Project
 from devwayfinder.core.protocols import Analyzer, ModelProvider, OutputGenerator
-from devwayfinder.core.exceptions import (
-    DevWayfinderError,
-    ConfigurationError,
-    AnalysisError,
-    ProviderError,
-    GenerationError,
-)
 
 __all__ = [
-    # Models
+    "AnalysisError",
+    "Analyzer",
+    "ConfigurationError",
+    "DependencyGraph",
+    "DependencyGraph",
+    "DevWayfinderError",
+    "GenerationError",
+    "ModelProvider",
     "Module",
     "ModuleType",
-    "Project",
-    "DependencyGraph",
     "OnboardingGuide",
+    "OutputGenerator",
+    "Project",
+    "ProviderError",
     "Section",
     "SectionType",
-    # Protocols
-    "Analyzer",
-    "ModelProvider",
-    "OutputGenerator",
-    # Exceptions
-    "DevWayfinderError",
-    "ConfigurationError",
-    "AnalysisError",
-    "ProviderError",
-    "GenerationError",
 ]

@@ -11,8 +11,8 @@
 
 DevWayfinder configuration is loaded from multiple sources with the following precedence (highest to lowest):
 
-1. **CLI arguments** — `--model-provider ollama`
-2. **Environment variables** — `DEVWAYFINDER_MODEL_PROVIDER=ollama`
+1. **CLI arguments** — `--model-provider openai_compat`
+2. **Environment variables** — `DEVWAYFINDER_MODEL_PROVIDER=openai_compat`
 3. **Project config** — `.devwayfinder/config.yaml`
 4. **User config** — `~/.devwayfinder/config.yaml`
 5. **Built-in defaults**
@@ -27,9 +27,10 @@ Configuration files use YAML format:
 # .devwayfinder/config.yaml
 
 model:
-  provider: ollama
-  model_name: mistral:7b
-  base_url: http://localhost:11434
+  provider: openai_compat
+  model_name: null
+  base_url: http://127.0.0.1:5000/v1
+  api_key: local
   timeout: 120
   max_tokens: 512
   temperature: 0.3
@@ -79,10 +80,10 @@ logging:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `model.provider` | `string` | `ollama` | LLM provider: `ollama`, `openai`, `heuristic` |
-| `model.model_name` | `string` | `mistral:7b` | Model identifier |
-| `model.base_url` | `string` | `http://localhost:11434` | API endpoint URL |
-| `model.api_key` | `string` | `null` | API key (for cloud providers) |
+| `model.provider` | `string` | `openai_compat` | LLM provider: `openai_compat`, `openai`, `ollama`, `heuristic` |
+| `model.model_name` | `string \| null` | `null` | Model identifier; required for official OpenAI |
+| `model.base_url` | `string` | `http://127.0.0.1:5000/v1` | API endpoint URL |
+| `model.api_key` | `string \| null` | `local` | API key or local placeholder token |
 | `model.timeout` | `int` | `120` | Request timeout in seconds |
 | `model.max_tokens` | `int` | `512` | Maximum tokens per response |
 | `model.temperature` | `float` | `0.3` | Sampling temperature (0.0-1.0) |
@@ -133,10 +134,10 @@ All configuration options can be set via environment variables:
 # Format: DEVWAYFINDER_{SECTION}_{KEY} (uppercase, underscores)
 
 # Model configuration
-DEVWAYFINDER_MODEL_PROVIDER=ollama
-DEVWAYFINDER_MODEL_NAME=mistral:7b
-DEVWAYFINDER_MODEL_BASE_URL=http://localhost:11434
-DEVWAYFINDER_API_KEY=sk-...
+DEVWAYFINDER_MODEL_PROVIDER=openai_compat
+DEVWAYFINDER_MODEL_NAME=
+DEVWAYFINDER_MODEL_BASE_URL=http://127.0.0.1:5000/v1
+DEVWAYFINDER_API_KEY=local
 
 # Analysis configuration
 DEVWAYFINDER_ANALYSIS_ENABLE_GIT=true
@@ -161,9 +162,8 @@ CLI arguments override all other configuration:
 
 ```bash
 devwayfinder generate ./project \
-  --model-provider ollama \
-  --model-name mistral:7b \
-  --base-url http://localhost:11434 \
+  --model-provider openai_compat \
+  --base-url http://127.0.0.1:5000/v1 \
   --no-llm \                      # Use heuristic mode
   --output ./ONBOARDING.md \
   --no-graph \

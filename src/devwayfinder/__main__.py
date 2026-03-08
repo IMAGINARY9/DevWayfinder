@@ -6,7 +6,7 @@ import sys
 def main() -> int:
     """Main entry point."""
     from devwayfinder.cli.app import app
-    
+
     app()
     return 0
 

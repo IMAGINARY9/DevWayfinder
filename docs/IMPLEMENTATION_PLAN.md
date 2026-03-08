@@ -174,14 +174,15 @@ This means each phase completes with a deployable artifact that can be demoed an
 - [ ] Build dependency graph from imports
 - [ ] Write analyzer unit tests
 
-### Phase 1.5: LLM Providers ⏳
-- [ ] Implement base Provider abstract class
-- [ ] Implement Ollama provider with httpx
-- [ ] Implement OpenAI-compatible provider
-- [ ] Implement heuristic fallback provider
+### Phase 1.5: LLM Providers 🔄
+- [x] Implement base Provider abstract class
+- [x] Implement Ollama provider with httpx
+- [x] Implement OpenAI-compatible provider
+- [x] Implement heuristic fallback provider
+- [x] Add official OpenAI provider support
 - [ ] Add retry logic with exponential backoff
-- [ ] Add health check functionality
-- [ ] Write provider tests with mocks
+- [x] Add health check functionality
+- [x] Write provider tests with mocks
 
 ### Phase 1.6: Summarization Engine ⏳
 - [ ] Design summarization prompt templates
@@ -198,11 +199,11 @@ This means each phase completes with a deployable artifact that can be demoed an
 - [ ] Implement guide assembly logic
 - [ ] Write generator tests
 
-### Phase 1.8: CLI Interface ⏳
+### Phase 1.8: CLI Interface 🔄
 - [ ] Set up Typer application
 - [ ] Implement `analyze` command
 - [ ] Implement `generate` command
-- [ ] Implement `test-model` command
+- [x] Implement `test-model` command
 - [ ] Add rich progress display
 - [ ] Write CLI integration tests
 
@@ -319,7 +320,7 @@ Update this section as phases complete:
 | 1.2 Core Domain | 🔲 Not Started | - | - |
 | 1.3 Configuration | 🔲 Not Started | - | - |
 | 1.4 Python Analyzer | 🔲 Not Started | - | - |
-| 1.5 LLM Providers | 🔲 Not Started | - | - |
+| 1.5 LLM Providers | 🔄 In Progress | Base provider, Ollama, OpenAI-compatible, official OpenAI, heuristic, tests | Retry logic |
 | 1.6 Summarization | 🔲 Not Started | - | - |
 | 1.7 Guide Generator | 🔲 Not Started | - | - |
 | 1.8 CLI Interface | 🔲 Not Started | - | - |

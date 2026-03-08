@@ -9,17 +9,25 @@
 # MODEL CONFIGURATION
 # ----------------------------------------------------------------------------
 model:
-  # LLM provider: ollama | openai | heuristic
-  provider: ollama
+  # LLM provider: openai_compat | openai | ollama | heuristic
+  provider: openai_compat
   
   # Model identifier (depends on provider)
-  model_name: mistral:7b
+  # openai_compat: optional, uses server default when null
+  # openai: required (example: gpt-4o-mini)
+  # ollama: example mistral:7b
+  model_name: null
   
   # API endpoint URL
-  base_url: http://localhost:11434
+  # Local text-generation-webui default: http://127.0.0.1:5000/v1
+  # Official OpenAI default: https://api.openai.com/v1
+  # Ollama default: http://localhost:11434
+  base_url: http://127.0.0.1:5000/v1
   
-  # API key (required for cloud providers, leave empty for local)
-  # api_key: sk-...
+  # API key:
+  # - local OpenAI-compatible endpoints often accept "local"
+  # - official OpenAI requires a real key
+  api_key: local
   
   # Request timeout in seconds
   timeout: 120

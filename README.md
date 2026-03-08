@@ -43,7 +43,7 @@ The tool automates the hours-long process of manually exploring unfamiliar codeb
 ### Prerequisites
 
 - Python 3.11+
-- Local LLM (Ollama recommended) — see [USAGE.md](docs/USAGE.md) for setup
+- Local OpenAI-compatible LLM endpoint or Ollama — see [USAGE.md](docs/USAGE.md) for provider setup
 
 ### Install from Source
 
@@ -66,8 +66,14 @@ pip install -e ".[dev]"
 ## Quick Start
 
 ```bash
-# Verify LLM connection
-devwayfinder test-model
+# Verify a local OpenAI-compatible endpoint (text-generation-webui, vLLM)
+devwayfinder test-model --provider openai_compat --base-url http://127.0.0.1:5000/v1
+
+# Verify Ollama
+devwayfinder test-model --provider ollama --model mistral:7b
+
+# Verify official OpenAI
+devwayfinder test-model --provider openai --model gpt-4o-mini --api-key $DEVWAYFINDER_API_KEY
 
 # Generate onboarding guide for a project
 devwayfinder generate ./path/to/project
@@ -110,9 +116,10 @@ See [CONFIGURATION.md](docs/CONFIGURATION.md) for all options.
 ```yaml
 # .devwayfinder/config.yaml
 model:
-  provider: ollama
-  model_name: mistral:7b
-  base_url: http://localhost:11434
+  provider: openai_compat
+  model_name: null
+  base_url: http://127.0.0.1:5000/v1
+  api_key: local
 
 analysis:
   include_patterns:
@@ -149,7 +156,7 @@ See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed component design.
 |-----------|------------|
 | **CLI** | Python 3.11+, Typer, Rich |
 | **Analysis** | AST, Tree-sitter (optional), networkx |
-| **LLM** | Ollama (local) / OpenAI-compatible APIs |
+| **LLM** | OpenAI-compatible APIs, Ollama, official OpenAI |
 | **Configuration** | Pydantic, YAML |
 | **Testing** | pytest, pytest-asyncio |
 
