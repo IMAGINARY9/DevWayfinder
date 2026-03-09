@@ -50,7 +50,6 @@ analysis:
   enable_git_analysis: true
   enable_metrics: true
   analysis_layers:
-    - tree_sitter
     - ast
     - regex
     - llm
@@ -97,7 +96,7 @@ logging:
 | `analysis.max_file_size` | `int` | `100000` | Max file size in bytes |
 | `analysis.enable_git_analysis` | `bool` | `true` | Analyze git history |
 | `analysis.enable_metrics` | `bool` | `true` | Compute complexity metrics |
-| `analysis.analysis_layers` | `list[str]` | `[tree_sitter, ast, regex, llm]` | Analysis methods in priority order |
+| `analysis.analysis_layers` | `list[str]` | `[ast, regex, llm]` | Analysis methods in priority order. `tree_sitter` available as optional extra. |
 
 ### 3.3 Output Configuration
 

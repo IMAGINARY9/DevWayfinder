@@ -1,8 +1,8 @@
 # DevWayfinder — Requirements Specification
 
-> **Version:** 1.0.0  
+> **Version:** 1.1.0  
 > **Status:** Active  
-> **Last Updated:** 2026-03-08  
+> **Last Updated:** 2026-03-09  
 > **Authoritative Source:** This document is the single source of truth for project requirements.
 
 ---
@@ -39,7 +39,7 @@ DevWayfinder is an AI-powered developer onboarding generator that transforms rep
 | FR-005 | Identify entry points (main files, CLI commands, exports) | Must | 1 |
 | FR-006 | Compute file-level complexity metrics (LOC, cyclomatic) | Should | 2 |
 | FR-007 | Analyze git log for change frequency and contributors | Should | 2 |
-| FR-008 | Support layered parsing: heuristics → Tree-sitter → LSP → LLM | Must | 1 |
+| FR-008 | Support layered parsing: Python AST → regex heuristics → LLM fallback | Must | 1 |
 | FR-009 | Gracefully degrade when parsers unavailable | Must | 1 |
 | FR-010 | Cache analysis results for incremental updates | Should | 2 |
 
@@ -51,7 +51,7 @@ DevWayfinder is an AI-powered developer onboarding generator that transforms rep
 | FR-021 | Support TypeScript/JavaScript import/export extraction | Should | 2 |
 | FR-022 | Support generic file structure analysis (any language) | Must | 1 |
 | FR-023 | Plugin system for adding new language analyzers | Should | 3 |
-| FR-024 | Tree-sitter integration for accurate parsing | Should | 2 |
+| FR-024 | Tree-sitter integration for accurate parsing (optional enhancement) | Could | 3 |
 | FR-025 | Fallback to regex/LLM for unsupported languages | Must | 1 |
 
 ### 2.3 Summarization Engine
@@ -65,7 +65,7 @@ DevWayfinder is an AI-powered developer onboarding generator that transforms rep
 | FR-034 | Create setup/build instructions from detected config | Should | 2 |
 | FR-035 | Support multiple LLM backends (local, API, containerized) | Must | 1 |
 | FR-036 | Cache LLM responses per file hash | Must | 1 |
-| FR-037 | Work without LLM using heuristic summaries | Should | 2 |
+| FR-037 | Work without LLM using heuristic summaries | Must | 1 |
 
 ### 2.4 Output Generation
 
@@ -76,7 +76,7 @@ DevWayfinder is an AI-powered developer onboarding generator that transforms rep
 | FR-042 | Generate module-by-module reference guide | Must | 1 |
 | FR-043 | Export to multiple formats (MD, HTML, PDF) | Could | 3 |
 | FR-044 | Include complexity metrics per module | Should | 2 |
-| FR-045 | Generate interactive HTML with collapsible sections | Could | 3 |
+| FR-045 | Generate interactive HTML with collapsible sections | Won't | — |
 
 ### 2.5 CLI Interface
 
@@ -85,7 +85,7 @@ DevWayfinder is an AI-powered developer onboarding generator that transforms rep
 | FR-050 | `devwayfinder analyze <path>` — run full analysis | Must | 1 |
 | FR-051 | `devwayfinder generate <path>` — generate onboarding guide | Must | 1 |
 | FR-052 | `devwayfinder init` — create .devwayfinder config directory | Should | 2 |
-| FR-053 | `devwayfinder serve` — local server for interactive viewing | Could | 3 |
+| FR-053 | ~~`devwayfinder serve` — local server for interactive viewing~~ | Won't | — |
 | FR-054 | Support YAML/TOML configuration file | Must | 1 |
 | FR-055 | Override config via CLI flags | Must | 1 |
 | FR-056 | Rich progress display with status indicators | Should | 2 |
@@ -198,6 +198,7 @@ DevWayfinder is an AI-powered developer onboarding generator that transforms rep
   - [ ] Entry points identified
 - [ ] CLI works with zero configuration
 - [ ] LLM integration functions with Ollama
+- [ ] Heuristic mode works without LLM (offline fallback)
 
 ### 5.2 MVP 2 Acceptance
 
@@ -256,7 +257,24 @@ The following are explicitly **not** in scope for this project:
 
 ---
 
-## 8. Glossary
+## 8. Architectural Decisions
+
+### AD-001: Hybrid Parsing Strategy (2026-03-09)
+
+**Decision:** Adopt a hybrid approach — universal heuristic/AST core with well-defined interface hooks for future specialized parsers.
+
+**Context:** Analysis of parser strategy requirements revealed a scope creep risk with Tree-sitter integration. Each new language grammar constitutes a sub-project with ongoing maintenance burden. For an onboarding tool, the accuracy of regex + Python AST + LLM summaries is sufficient to deliver value.
+
+**Approach (3-phase evolutionary architecture):**
+1. **MVP 1 (Core):** Python AST + regex heuristics + LLM fallback + basic heuristics. Define stable `Analyzer` protocol interface with plugin hooks.
+2. **MVP 2-3 (Enhancement):** Add specialized analyzers (TypeScript regex, git history). Tree-sitter as optional enhancement, not a requirement.
+3. **MVP 4+ (Scaling):** Full plugin registry, community language analyzers, Tree-sitter where it delivers measurable value.
+
+**Rationale:** Regex + LLM produces 'good enough' analysis for onboarding use cases. Tree-sitter investment deferred until user feedback confirms demand for higher-accuracy parsing.
+
+---
+
+## 9. Glossary
 
 | Term | Definition |
 |------|------------|

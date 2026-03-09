@@ -1,8 +1,8 @@
 # DevWayfinder — Architecture Document
 
-> **Version:** 1.0.0  
+> **Version:** 1.1.0  
 > **Status:** Active  
-> **Last Updated:** 2026-03-08  
+> **Last Updated:** 2026-03-09  
 > **Authoritative Source:** This document is the single source of truth for system architecture.
 
 ---
@@ -43,9 +43,10 @@ DevWayfinder follows a modular, layered architecture designed for extensibility,
 
 ### 2.2 Graceful Degradation
 - System works without LLM (heuristic summaries)
-- System works without Tree-sitter (regex parsing)
+- System works without Tree-sitter (Python AST + regex parsing)
 - System works without Git (skip history analysis)
 - Features degrade gracefully based on available capabilities
+- Tree-sitter is an optional post-MVP enhancement, not a core dependency
 
 ### 2.3 Single Responsibility
 - Each module handles one concern
@@ -288,31 +289,36 @@ class Analyzer(Protocol):
 
 ### 5.2 Analyzer Layering Strategy
 
-Analysis uses a layered approach, trying each method in order:
+Analysis uses a layered approach, trying each method in order of availability and accuracy:
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│  Layer 1: Tree-sitter (Fastest, Most Accurate)                   │
-│  - Direct AST parsing                                            │
-│  - Language-specific extractors                                  │
-│  - Fallback if grammar unavailable                               │
+│  Layer 1: Language AST (Accurate, Built-in for Python)         │
+│  - Python: ast module (standard library, zero dependencies)   │
+│  - Extracts imports, exports, classes, functions               │
+│  - Future: Tree-sitter for multi-language AST (optional)       │
 ├──────────────────────────────────────────────────────────────────┤
-│  Layer 2: Regex Heuristics (Fast, Good Coverage)                 │
-│  - Pattern matching for imports/exports                          │
-│  - Works offline, no dependencies                                │
-│  - Lower accuracy for complex syntax                             │
+│  Layer 2: Regex Heuristics (Fast, Good Coverage)               │
+│  - Pattern matching for imports/exports in any language        │
+│  - Works offline, no dependencies                              │
+│  - Fallback when AST unavailable for a language                │
 ├──────────────────────────────────────────────────────────────────┤
-│  Layer 3: LLM Semantic Index (Universal, Slower)                 │
-│  - Ask model to identify relationships                           │
-│  - Works for any language                                        │
-│  - Requires LLM availability                                     │
+│  Layer 3: LLM Semantic Analysis (Universal, Slower)            │
+│  - Ask model to identify relationships                        │
+│  - Works for any language                                      │
+│  - Requires LLM availability                                   │
 ├──────────────────────────────────────────────────────────────────┤
-│  Layer 4: Basic Heuristics (Always Available)                    │
-│  - File extension detection                                      │
-│  - Directory structure inference                                 │
-│  - Filename pattern matching                                     │
+│  Layer 4: Basic Heuristics (Always Available)                  │
+│  - File extension detection                                    │
+│  - Directory structure inference                               │
+│  - Filename pattern matching                                   │
 └──────────────────────────────────────────────────────────────────┘
 ```
+
+> **Architectural Decision AD-001:** Tree-sitter is deferred to post-MVP as an optional
+> enhancement. Python AST + regex heuristics + LLM fallback provide sufficient accuracy
+> for onboarding use cases. The `Analyzer` protocol defines stable plugin hooks for
+> future specialized parsers. See [REQUIREMENTS.md](REQUIREMENTS.md) for details.
 
 ### 5.3 Provider Protocol
 
@@ -523,7 +529,11 @@ class DevWayfinderConfig(BaseModel):
 1. Create `analyzers/{language}/` package
 2. Implement `LanguageAnalyzer(Analyzer)` protocol
 3. Register in `analyzers/registry.py`
-4. Optionally add Tree-sitter grammar
+4. Optionally add Tree-sitter grammar (post-MVP enhancement)
+
+> **Note:** Tree-sitter integration is deferred to post-MVP. New language analyzers
+> should use regex heuristics as the primary approach, with AST parsing added when
+> the language's standard tooling supports it.
 
 ```python
 # analyzers/rust/imports.py
@@ -623,7 +633,7 @@ DevWayfinderError (base)
 DevWayfinder Extension
 ├── Extension Host (TypeScript)
 │   ├── TreeViewProvider (module tree)
-│   ├── GraphWebviewProvider (dependency visualization)
+│   ├── MermaidGraphProvider (dependency visualization via Markdown preview)
 │   ├── HoverProvider (inline summaries)
 │   └── CommandHandlers
 │

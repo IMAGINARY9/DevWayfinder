@@ -2,7 +2,7 @@
 
 > **Project:** AI-Powered Developer Onboarding Generator  
 > **Status:** MVP 1 In Progress  
-> **Last Updated:** 2026-03-08
+> **Last Updated:** 2026-03-09
 
 ---
 
@@ -49,7 +49,7 @@ DevWayfinder analyzes codebases to produce structured onboarding guides with:
 | Component | Technology |
 |-----------|------------|
 | CLI | Python 3.11+, Typer, Rich |
-| Analysis | AST, Tree-sitter (optional), networkx |
+| Analysis | Python AST, regex heuristics, networkx |
 | LLM | OpenAI-compatible APIs, Ollama, official OpenAI |
 | Config | Pydantic, YAML |
 | Testing | pytest, pytest-asyncio |
@@ -148,15 +148,18 @@ Key deliverables:
 - [x] Project structure and configuration
 - [x] Core domain models (Module, Project, DependencyGraph, Guide)
 - [x] Protocol definitions (Analyzer, Provider, Generator)
-- [ ] Python import/export analyzer
+- [ ] Python import/export analyzer (AST + regex heuristics)
 - [x] LLM providers (OpenAI-compatible, Ollama, official OpenAI)
 - [x] Heuristic fallback provider
+- [ ] Summarization engine
 - [ ] Guide generator
 - [ ] CLI commands (analyze, generate)
 - [x] CLI command (test-model)
-- [ ] Caching layer
+- [ ] Configuration system (full YAML loader)
 
-**Next steps:** Implement Python analyzer and guide generation pipeline
+**Parsing strategy (AD-001):** Python AST + regex heuristics for MVP 1. Tree-sitter deferred to post-MVP as optional enhancement. See [REQUIREMENTS.md](docs/REQUIREMENTS.md) §8.
+
+**Next steps:** Implement Python analyzer (Phase 1.5) — the core value-producing component
 
 ---
 

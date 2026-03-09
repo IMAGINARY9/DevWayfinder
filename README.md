@@ -155,7 +155,7 @@ See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed component design.
 | Component | Technology |
 |-----------|------------|
 | **CLI** | Python 3.11+, Typer, Rich |
-| **Analysis** | AST, Tree-sitter (optional), networkx |
+| **Analysis** | Python AST, regex heuristics, networkx |
 | **LLM** | OpenAI-compatible APIs, Ollama, official OpenAI |
 | **Configuration** | Pydantic, YAML |
 | **Testing** | pytest, pytest-asyncio |
@@ -203,10 +203,10 @@ ruff format --check src tests
 | MVP | Focus | Status |
 |-----|-------|--------|
 | **MVP 1** | Core CLI & Python Analysis | 🔄 In Progress |
-| **MVP 2** | Metrics, Git, TypeScript Support | 🔲 Planned |
-| **MVP 3** | VS Code Extension (Basic) | 🔲 Planned |
-| **MVP 4** | Interactive Features | 🔲 Planned |
-| **MVP 5** | Polish & Distribution | 🔲 Planned |
+| **MVP 2** | Metrics, Git, TypeScript, Caching | 🔲 Planned |
+| **MVP 3** | VS Code Extension & Plugin System | 🔲 Planned |
+| **MVP 4** | Interactive Features & Polish | 🔲 Planned |
+| **MVP 5** | Distribution & Production | 🔲 Planned |
 
 See [IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for detailed breakdown.
 
