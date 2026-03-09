@@ -204,65 +204,65 @@ This means each phase completes with a deployable artifact that can be demoed an
 - [ ] Implement config hierarchy (defaults → user config → project config → env vars → CLI)
 - [ ] Write config validation tests
 
-### Phase 1.5: Code Analyzer ⏳
-**Status:** Not started — **NEXT PRIORITY**
+### Phase 1.5: Code Analyzer ✅
+**Status:** Complete
 
 This is the core value-producing component. Uses language-agnostic regex heuristics as the primary analysis method, with Python `ast` module as a zero-cost built-in optimization for Python files.
 
 #### 1.5.1 Base Analyzer Framework
-- [ ] Implement `BaseAnalyzer` abstract class (implements `Analyzer` protocol)
-- [ ] Implement `AnalyzerRegistry` for language-based analyzer lookup
-- [ ] Implement `GenericAnalyzer` for language-agnostic file structure analysis
-- [ ] Define `AnalysisResult` population pipeline
+- [x] Implement `BaseAnalyzer` abstract class (implements `Analyzer` protocol)
+- [x] Implement `AnalyzerRegistry` for language-based analyzer lookup
+- [x] Implement `GenericAnalyzer` for language-agnostic file structure analysis (via RegexAnalyzer)
+- [x] Define `AnalysisResult` population pipeline
 
 #### 1.5.2 Directory Structure Analyzer
-- [ ] Implement `StructureAnalyzer` — scan directory tree
-- [ ] Detect build system (pyproject.toml, setup.py, package.json, Cargo.toml, CMakeLists.txt, Makefile)
-- [ ] Detect package manager (pip, npm, cargo, go mod, maven)
-- [ ] Extract README, CONTRIBUTING, CHANGELOG content
-- [ ] Detect entry points by filename patterns (`main.*`, `__main__.py`, `index.*`, `app.*`, `cli.*`)
-- [ ] Respect `.gitignore` and configurable exclude patterns
-- [ ] Binary file detection and skip
+- [x] Implement `StructureAnalyzer` — scan directory tree
+- [x] Detect build system (pyproject.toml, setup.py, package.json, Cargo.toml, CMakeLists.txt, Makefile)
+- [x] Detect package manager (pip, npm, cargo, go mod, maven)
+- [x] Extract README, CONTRIBUTING, CHANGELOG content
+- [x] Detect entry points by filename patterns (`main.*`, `__main__.py`, `index.*`, `app.*`, `cli.*`)
+- [x] Respect `.gitignore` and configurable exclude patterns
+- [x] Binary file detection and skip
 
 #### 1.5.3 Regex Import/Export Extractor
-- [ ] Implement `RegexAnalyzer` — language-agnostic heuristic-based analysis
-- [ ] Regex patterns for common import syntaxes across languages:
+- [x] Implement `RegexAnalyzer` — language-agnostic heuristic-based analysis
+- [x] Regex patterns for common import syntaxes across languages:
   - Python: `import X`, `from X import Y`
   - JavaScript/TypeScript: `import ... from`, `require(...)`
   - Go: `import "..."`, `import (...)`
   - Rust: `use ...`, `mod ...`
   - Java/C#: `import ...`, `using ...`
   - C/C++: `#include ...`
-- [ ] Regex patterns for common export/declaration syntaxes:
+- [x] Regex patterns for common export/declaration syntaxes:
   - Functions: `def`, `func`, `function`, `fn`, etc.
   - Classes/structs: `class`, `struct`, `interface`, `type`, etc.
   - Module exports: `__all__`, `module.exports`, `export`, `pub`
-- [ ] Language detection by file extension
-- [ ] Handle malformed files gracefully (skip with warning)
+- [x] Language detection by file extension
+- [x] Handle malformed files gracefully (skip with warning)
 
 #### 1.5.4 Python AST Optimization
 > Python `ast` module is built into the standard library — zero external dependencies. It provides higher accuracy for Python files at no cost.
-- [ ] Implement `PythonASTAnalyzer` extending regex analyzer
-- [ ] Extract `import` and `from ... import ...` statements via AST
-- [ ] Resolve relative imports to absolute module paths
-- [ ] Extract exports: public functions, classes, `__all__` definitions via AST
-- [ ] Extract module-level docstrings and function/class signatures
-- [ ] Fall back to regex if AST parsing fails (syntax errors, encoding issues)
+- [x] Implement `PythonASTAnalyzer` extending regex analyzer
+- [x] Extract `import` and `from ... import ...` statements via AST
+- [x] Resolve relative imports to absolute module paths
+- [x] Extract exports: public functions, classes, `__all__` definitions via AST
+- [x] Extract module-level docstrings and function/class signatures
+- [x] Fall back to regex if AST parsing fails (syntax errors, encoding issues)
 
 #### 1.5.5 Dependency Graph Builder
-- [ ] Build `DependencyGraph` from collected import/export data
-- [ ] Map import strings to actual file paths within the project
-- [ ] Mark entry points (files with `if __name__` or `main()` patterns, or no incoming imports)
-- [ ] Detect circular dependencies and log warnings
-- [ ] Compute module connectivity metrics (in-degree, out-degree)
+- [x] Build `DependencyGraph` from collected import/export data
+- [x] Map import strings to actual file paths within the project
+- [x] Mark entry points (files with `if __name__` or `main()` patterns, or no incoming imports)
+- [x] Detect circular dependencies and log warnings
+- [x] Compute module connectivity metrics (in-degree, out-degree)
 
 #### 1.5.6 Testing
-- [ ] Unit tests for regex extractor (multiple languages, various import styles)
-- [ ] Unit tests for Python AST optimizer (edge cases, syntax errors)
-- [ ] Unit tests for structure analyzer
-- [ ] Unit tests for dependency graph builder
-- [ ] Integration test: analyze a real project fixture
-- [ ] Edge cases: empty files, syntax errors, binary files, circular imports
+- [x] Unit tests for regex extractor (multiple languages, various import styles)
+- [x] Unit tests for Python AST optimizer (edge cases, syntax errors)
+- [x] Unit tests for structure analyzer
+- [x] Unit tests for dependency graph builder
+- [x] Integration test: analyze a real project fixture
+- [x] Edge cases: empty files, syntax errors, binary files, circular imports
 
 ### Phase 1.6: Summarization Engine ⏳
 **Status:** Not started
@@ -614,8 +614,8 @@ Update this section as phases complete:
 | 1.2 Core Domain Models | ✅ Complete | Module, Project, Graph, Guide, Protocols, Exceptions — all tested |
 | 1.3 LLM Providers | ✅ Complete | Ollama, OpenAI-compat, OpenAI, Heuristic — factory + tests. Missing: retry logic |
 | 1.4 Configuration | 🔄 In Progress | Provider config done; full config loader needed |
-| 1.5 Python Analyzer | 🔲 Not Started | **Next priority** — core value component |
-| 1.6 Summarization | 🔲 Not Started | Depends on 1.5 |
+| 1.5 Code Analyzer | ✅ Complete | BaseAnalyzer, StructureAnalyzer, RegexAnalyzer, PythonASTAnalyzer, GraphBuilder — 36 tests |
+| 1.6 Summarization | 🔲 Not Started | **Next priority** — connect analyzers to LLM |
 | 1.7 Guide Generator | 🔲 Not Started | Depends on 1.5, 1.6 |
 | 1.8 CLI Interface | 🔄 In Progress | test-model done; analyze/generate stubs |
 | 1.9 Integration Testing | 🔲 Not Started | Depends on 1.5-1.8 |

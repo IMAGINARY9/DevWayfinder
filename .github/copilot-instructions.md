@@ -134,32 +134,45 @@ pytest --cov=devwayfinder --cov-report=html
 2. Run linting: `ruff check src tests`
 3. Run type check: `mypy src`
 4. Update documentation if needed
-5. Commit: `git commit -m "type(scope): description"`
+5. Commit using conventional commits format
+
+### Commit Convention
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+```
+
+**Types:**
+| Type | Purpose |
+|------|---------|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `refactor` | Code restructuring (no behavior change) |
+| `docs` | Documentation only |
+| `test` | Adding or updating tests |
+| `chore` | Build, tooling, config changes |
+| `perf` | Performance improvement |
+| `style` | Code style/formatting (no logic change) |
+
+**Scopes:** `core`, `analyzers`, `providers`, `cli`, `generators`, `config`, `tests`, `docs`
+
+**Examples:**
+```bash
+git commit -m "feat(analyzers): implement Python AST analyzer"
+git commit -m "fix(providers): handle timeout in Ollama health check"
+git commit -m "refactor(core): extract dependency resolution to separate module"
+git commit -m "docs: update IMPLEMENTATION_PLAN with Phase 1.5 progress"
+```
 
 ---
 
-## 📌 Current MVP Status
+## 📌 Current Status
 
-**MVP 1: Core CLI & Python Analysis**
-
-Status: In Progress
-
-Key deliverables:
-- [x] Project structure and configuration
-- [x] Core domain models (Module, Project, DependencyGraph, Guide)
-- [x] Protocol definitions (Analyzer, Provider, Generator)
-- [ ] Python import/export analyzer (AST + regex heuristics)
-- [x] LLM providers (OpenAI-compatible, Ollama, official OpenAI)
-- [x] Heuristic fallback provider
-- [ ] Summarization engine
-- [ ] Guide generator
-- [ ] CLI commands (analyze, generate)
-- [x] CLI command (test-model)
-- [ ] Configuration system (full YAML loader)
-
-**Parsing strategy (AD-001):** Python AST + regex heuristics for MVP 1. Tree-sitter deferred to post-MVP as optional enhancement. See [REQUIREMENTS.md](docs/REQUIREMENTS.md) §8.
-
-**Next steps:** Implement Python analyzer (Phase 1.5) — the core value-producing component
+See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for detailed MVP progress tracking and next steps.
 
 ---
 
