@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -26,6 +27,9 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+# Progress callback type: (phase: str, status: str, detail: str) -> None
+ProgressCallback = Callable[[str, str, str], None]
 
 
 @dataclass
@@ -107,8 +111,18 @@ class GuideGenerator:
         self._graph: DependencyGraph | None = None
         self._llm_calls = 0
 
-    async def generate(self) -> GenerationResult:
+    async def generate(
+        self,
+        progress_callback: ProgressCallback | None = None,
+    ) -> GenerationResult:
         """Run the full generation pipeline.
+
+        Args:
+            progress_callback: Optional callback for progress updates.
+                Called with (phase, status, detail) where:
+                - phase: "analysis", "graph", "metrics", "summarization", "assembly"
+                - status: "start", "progress", "complete", "failed", "skipped"
+                - detail: Additional information string
 
         Returns:
             GenerationResult with guide and metrics
@@ -116,31 +130,58 @@ class GuideGenerator:
         start_time = time.perf_counter()
         errors: list[str] = []
 
+        def _report(phase: str, status: str, detail: str = "") -> None:
+            """Report progress if callback provided."""
+            if progress_callback:
+                progress_callback(phase, status, detail)
+
         # Stage 1: Analysis
+        _report("analysis", "start", "Scanning project structure")
         analysis_start = time.perf_counter()
         try:
             await self._run_analysis()
+            modules_analyzed = self._project.module_count if self._project else 0
+            _report("analysis", "complete", f"{modules_analyzed} modules found")
         except Exception as e:
             errors.append(f"Analysis failed: {e}")
             logger.exception("Analysis failed")
+            _report("analysis", "failed", str(e))
 
         analysis_time = time.perf_counter() - analysis_start
         modules_analyzed = self._project.module_count if self._project else 0
+
+        # Mark graph phase complete (handled by analysis)
+        _report("graph", "start", "Building dependency graph")
+        if self._graph:
+            _report("graph", "complete", f"{self._graph.edge_count} dependencies")
+        else:
+            _report("graph", "skipped", "No graph built")
+
+        # Mark metrics phase
+        _report("metrics", "start", "Computing complexity metrics")
+        _report("metrics", "complete", "Metrics calculated")
 
         # Stage 2: Summarization
         summ_start = time.perf_counter()
         summaries: dict[str, str] = {}
         if self._project and self.config.use_llm:
+            _report("summarization", "start", "Generating module descriptions")
             try:
-                summaries = await self._run_summarization()
+                summaries = await self._run_summarization(progress_callback)
+                _report("summarization", "complete", f"{len(summaries)} summaries")
             except Exception as e:
                 errors.append(f"Summarization failed: {e}")
                 logger.exception("Summarization failed")
+                _report("summarization", "failed", str(e))
+        else:
+            _report("summarization", "skipped", "LLM disabled")
 
         summ_time = time.perf_counter() - summ_start
 
         # Stage 3: Assembly
+        _report("assembly", "start", "Creating onboarding document")
         guide = self._assemble_guide(summaries)
+        _report("assembly", "complete", f"{len(guide.sections)} sections")
 
         total_time = time.perf_counter() - start_time
         guide.generation_time_seconds = total_time
@@ -169,7 +210,10 @@ class GuideGenerator:
             self._graph.edge_count,
         )
 
-    async def _run_summarization(self) -> dict[str, str]:
+    async def _run_summarization(
+        self,
+        progress_callback: ProgressCallback | None = None,
+    ) -> dict[str, str]:
         """Run summarization phase."""
         if not self._project:
             return {}
@@ -179,15 +223,24 @@ class GuideGenerator:
 
         # Summarize modules in batch
         modules = list(self._project.modules.values())
+        total = len(modules)
+
+        # Report progress during summarization
+        if progress_callback:
+            progress_callback("summarization", "progress", f"0/{total} modules")
+
         results = await self.summarizer.summarize_modules_batch(modules, graph=self._graph)
 
-        for path, result in results.items():
+        for i, (path, result) in enumerate(results.items(), 1):
             if result.success:
                 summaries[path] = result.summary
                 if result.provider_used != "heuristic":
                     self._llm_calls += 1
             else:
                 logger.warning("Failed to summarize %s: %s", path, result.error)
+
+            if progress_callback and i % 5 == 0:  # Update every 5 modules
+                progress_callback("summarization", "progress", f"{i}/{total} modules")
 
         return summaries
 

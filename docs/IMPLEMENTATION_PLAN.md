@@ -1,7 +1,7 @@
 # DevWayfinder — Implementation Plan
 
-> **Version:** 2.0.0  
-> **Status:** MVP 1 Complete  
+> **Version:** 2.1.0  
+> **Status:** MVP 2 Complete  
 > **Last Updated:** 2026-03-09  
 > **Authoritative Source:** This document is the single source of truth for development roadmap and milestones.
 
@@ -66,7 +66,7 @@ This means each phase completes with a deployable artifact that can be demoed an
 - [x] Analysis completes in < 30s for 50-file project
 - [x] All tests pass, mypy clean, ruff clean
 
-### 🔲 MVP 2: Enhanced Analysis & Extended Capabilities
+### ✅ MVP 2: Enhanced Analysis & Extended Capabilities
 **Goal:** Richer analysis with metrics, git integration, caching, and improved output
 
 **Timeline:** Week 5-7
@@ -84,11 +84,11 @@ This means each phase completes with a deployable artifact that can be demoed an
 - Extended test coverage
 
 **Success Criteria:**
-- [ ] Analyze projects in multiple languages with useful results
-- [ ] Include complexity metrics in output
-- [ ] "Start Here" section with activity-based recommendations
-- [ ] Dependency graph rendered as Mermaid diagram
-- [ ] Incremental re-analysis on file change
+- [x] Analyze projects in multiple languages with useful results
+- [x] Include complexity metrics in output
+- [x] "Start Here" section with activity-based recommendations
+- [x] Dependency graph rendered as Mermaid diagram
+- [x] Incremental re-analysis on file change (via caching layer)
 
 ### 🔲 MVP 3: VS Code Extension & Plugin System
 **Goal:** Bring DevWayfinder into the IDE and enable community extensions
@@ -446,11 +446,11 @@ Assembles analysis + summaries into the final onboarding document.
 - [x] Add "Start Here" section to guide output
 - [x] Write recommendation tests
 
-### Phase 2.6: Enhanced Output ⏳
+### Phase 2.6: Enhanced Output ✅
 - [x] Implement Mermaid diagram generator for dependency graph
 - [x] Handle large graphs (clustering, filtering)
-- [ ] Rich progress display with per-phase status
-- [ ] Configuration templates (project-level `.devwayfinder/config.yaml`)
+- [x] Rich progress display with per-phase status
+- [x] Configuration templates (project-level `.devwayfinder/config.yaml`)
 - [x] Write visualization tests
 
 **Implementation Notes:**
@@ -464,6 +464,17 @@ Assembles analysis + summaries into the final onboarding document.
 - Entry point and core module highlighting with CSS styles
 - Convenience functions: `generate_mermaid_diagram()`, `generate_mermaid_markdown()`
 - 25 tests covering all diagram generation scenarios
+- Created `src/devwayfinder/cli/progress.py` with:
+  - `ProgressTracker`: Rich live display with per-phase status tracking
+  - `Phase`, `PhaseStatus`: Phase state management
+  - `create_generation_tracker()`: Pre-configured tracker for guide generation
+- Progress callback system in `GuideGenerator` for real-time progress updates
+- Created `src/devwayfinder/cli/templates.py` with:
+  - Configuration templates for Python, JavaScript, Java, Rust, Go projects
+  - `ConfigTemplate` dataclass with auto-detection via file indicators
+  - `initialize_config()`: Creates `.devwayfinder/config.yaml`
+  - `detect_project_type()`: Auto-detects project type from indicators
+- Enhanced `init` command with template selection, listing, and force overwrite
 
 ---
 

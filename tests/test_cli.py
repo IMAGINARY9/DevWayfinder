@@ -146,8 +146,54 @@ class TestInitCommand:
         assert result.exit_code == 0
         assert "Initialize" in result.output
 
-    def test_init_placeholder(self) -> None:
-        """Test init command shows placeholder message."""
-        result = runner.invoke(app, ["init", "."])
+    def test_init_creates_config(self, tmp_path: Path) -> None:
+        """Test init command creates configuration directory."""
+        result = runner.invoke(app, ["init", str(tmp_path)])
         assert result.exit_code == 0
-        assert "MVP 2" in result.output
+        assert "Configuration initialized" in result.output
+
+        # Verify files created
+        config_path = tmp_path / ".devwayfinder" / "config.yaml"
+        assert config_path.exists()
+
+        gitignore_path = tmp_path / ".devwayfinder" / ".gitignore"
+        assert gitignore_path.exists()
+
+    def test_init_detects_python_project(self, tmp_path: Path) -> None:
+        """Test init auto-detects Python projects."""
+        # Create a Python project indicator
+        (tmp_path / "pyproject.toml").write_text("[project]\\nname = \"test\"")
+
+        result = runner.invoke(app, ["init", str(tmp_path)])
+        assert result.exit_code == 0
+        assert "python" in result.output.lower()
+
+    def test_init_list_templates(self) -> None:
+        """Test init --list shows available templates."""
+        result = runner.invoke(app, ["init", "--list"])
+        assert result.exit_code == 0
+        assert "python" in result.output
+        assert "javascript" in result.output
+        assert "default" in result.output
+
+    def test_init_refuses_overwrite(self, tmp_path: Path) -> None:
+        """Test init refuses to overwrite existing config."""
+        # Create existing config
+        config_dir = tmp_path / ".devwayfinder"
+        config_dir.mkdir()
+        (config_dir / "config.yaml").write_text("existing: true")
+
+        result = runner.invoke(app, ["init", str(tmp_path)])
+        assert result.exit_code == 1
+        assert "already exists" in result.output
+
+    def test_init_force_overwrites(self, tmp_path: Path) -> None:
+        """Test init --force overwrites existing config."""
+        # Create existing config
+        config_dir = tmp_path / ".devwayfinder"
+        config_dir.mkdir()
+        (config_dir / "config.yaml").write_text("existing: true")
+
+        result = runner.invoke(app, ["init", str(tmp_path), "--force"])
+        assert result.exit_code == 0
+        assert "Configuration initialized" in result.output

@@ -13,6 +13,7 @@ from rich.table import Table
 from rich.tree import Tree
 
 from devwayfinder.analyzers import GraphBuilder, StructureAnalyzer
+from devwayfinder.cli.progress import create_generation_tracker
 from devwayfinder.core.exceptions import DevWayfinderError
 from devwayfinder.core.protocols import SummarizationContext
 from devwayfinder.generators import GenerationConfig, GuideGenerator
@@ -152,11 +153,7 @@ async def _generate_async(
             no_llm = True
 
     try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
+        with create_generation_tracker(console) as tracker:
             # Create generator
             gen_config = GenerationConfig(
                 use_llm=not no_llm,
@@ -168,10 +165,22 @@ async def _generate_async(
                 config=gen_config,
             )
 
-            # Run generation
-            task = progress.add_task("[cyan]Analyzing project structure...", total=None)
-            result = await generator.generate()
-            progress.update(task, description="[green]Generation complete!")
+            # Define progress callback
+            def on_progress(phase: str, status: str, detail: str) -> None:
+                """Handle progress updates from generator."""
+                if status == "start":
+                    tracker.start_phase(phase, detail)
+                elif status == "progress":
+                    tracker.update_progress(phase, detail)
+                elif status == "complete":
+                    tracker.complete_phase(phase, detail)
+                elif status == "failed":
+                    tracker.fail_phase(phase, detail)
+                elif status == "skipped":
+                    tracker.skip_phase(phase, detail)
+
+            # Run generation with progress tracking
+            result = await generator.generate(progress_callback=on_progress)
 
         # Output guide
         markdown = result.guide.to_markdown()
@@ -394,11 +403,74 @@ def init(
         ".",
         help="Path to initialize",
     ),
+    template: str | None = typer.Option(
+        None,
+        "--template",
+        "-t",
+        help="Configuration template (auto-detected if not specified)",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Overwrite existing configuration",
+    ),
+    list_templates: bool = typer.Option(
+        False,
+        "--list",
+        "-l",
+        help="List available templates",
+    ),
 ) -> None:
     """Initialize .devwayfinder configuration directory."""
-    console.print(f"[bold blue]DevWayfinder[/bold blue] — Initializing config at: {path}")
-    console.print("[yellow]Note: Full implementation coming in MVP 2[/yellow]")
-    # TODO: Implement config initialization
+    from devwayfinder.cli.templates import (
+        TEMPLATES,
+        initialize_config,
+    )
+
+    # List templates if requested
+    if list_templates:
+        console.print("[bold]Available configuration templates:[/bold]\n")
+        for name, tmpl in TEMPLATES.items():
+            indicators = ", ".join(tmpl.file_indicators) if tmpl.file_indicators else "any project"
+            console.print(f"  [cyan]{name}[/cyan] — {tmpl.description}")
+            console.print(f"    [dim]Detected by: {indicators}[/dim]\n")
+        return
+
+    project_path = Path(path).resolve()
+
+    if not project_path.exists():
+        console.print(f"[red]Error:[/red] Path does not exist: {project_path}")
+        raise typer.Exit(code=1)
+
+    if not project_path.is_dir():
+        console.print(f"[red]Error:[/red] Path is not a directory: {project_path}")
+        raise typer.Exit(code=1)
+
+    console.print(
+        f"[bold blue]DevWayfinder[/bold blue] — Initializing configuration\n"
+        f"Project: [cyan]{project_path}[/cyan]"
+    )
+
+    try:
+        config_path, template_used = initialize_config(
+            project_path,
+            template_name=template,
+            force=force,
+        )
+
+        console.print("\n[green]✓[/green] Configuration initialized!")
+        console.print(f"  Template: [cyan]{template_used}[/cyan]")
+        console.print(f"  Config: [dim]{config_path}[/dim]")
+        console.print("\nEdit [cyan].devwayfinder/config.yaml[/cyan] to customize settings.")
+
+    except FileExistsError as exc:
+        console.print(f"\n[yellow]Warning:[/yellow] {exc}")
+        console.print("Use [cyan]--force[/cyan] to overwrite existing configuration.")
+        raise typer.Exit(code=1) from exc
+    except ValueError as exc:
+        console.print(f"\n[red]Error:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
 
 
 @app.command()

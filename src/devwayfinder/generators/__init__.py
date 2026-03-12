@@ -9,6 +9,7 @@ from devwayfinder.generators.guide_generator import (
     GenerationResult,
     GuideGenerator,
     MarkdownGenerator,
+    ProgressCallback,
 )
 from devwayfinder.generators.mermaid import (
     DiagramDirection,
@@ -34,6 +35,7 @@ __all__ = [
     "MermaidDiagram",
     "MermaidGenerator",
     "NodeShape",
+    "ProgressCallback",
     "generate_mermaid_diagram",
     "generate_mermaid_markdown",
 ]
