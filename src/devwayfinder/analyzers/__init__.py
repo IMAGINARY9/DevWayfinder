@@ -8,6 +8,7 @@ This module provides code analysis capabilities:
 - PythonASTAnalyzer: Python-specific analysis using AST
 - GraphBuilder: Builds dependency graphs from analysis results
 - MetricsAnalyzer: Code complexity metrics (LOC, cyclomatic complexity)
+- GitAnalyzer: Git history analysis (contributors, change frequency)
 """
 
 from devwayfinder.analyzers.base import (
@@ -15,6 +16,13 @@ from devwayfinder.analyzers.base import (
     LANGUAGE_TO_EXTENSIONS,
     AnalyzerRegistry,
     BaseAnalyzer,
+)
+from devwayfinder.analyzers.git_analyzer import (
+    ContributorInfo,
+    FileGitInfo,
+    GitAnalyzer,
+    RepoGitInfo,
+    is_git_available,
 )
 from devwayfinder.analyzers.graph_builder import (
     GraphBuilder,
@@ -56,10 +64,13 @@ __all__ = [
     "AnalyzerRegistry",
     "BaseAnalyzer",
     "ClassInfo",
+    "ContributorInfo",
     "ExtractionResult",
+    "FileGitInfo",
     "FileMetrics",
     "FunctionInfo",
     "FunctionMetrics",
+    "GitAnalyzer",
     "GraphBuilder",
     "ImportResolver",
     "LOCMetrics",
@@ -67,6 +78,7 @@ __all__ = [
     "PythonASTAnalyzer",
     "PythonExtractionResult",
     "RegexAnalyzer",
+    "RepoGitInfo",
     "StructureAnalyzer",
     "StructureInfo",
     "analyze_python",
@@ -74,4 +86,5 @@ __all__ = [
     "analyze_with_regex",
     "build_dependency_graph",
     "get_python_imports",
+    "is_git_available",
 ]
