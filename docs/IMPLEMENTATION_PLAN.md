@@ -447,11 +447,23 @@ Assembles analysis + summaries into the final onboarding document.
 - [x] Write recommendation tests
 
 ### Phase 2.6: Enhanced Output ⏳
-- [ ] Implement Mermaid diagram generator for dependency graph
-- [ ] Handle large graphs (clustering, filtering)
+- [x] Implement Mermaid diagram generator for dependency graph
+- [x] Handle large graphs (clustering, filtering)
 - [ ] Rich progress display with per-phase status
 - [ ] Configuration templates (project-level `.devwayfinder/config.yaml`)
-- [ ] Write visualization tests
+- [x] Write visualization tests
+
+**Implementation Notes:**
+- Created `src/devwayfinder/generators/mermaid.py` with:
+  - `MermaidGenerator`: Generates Mermaid.js flowcharts from DependencyGraph
+  - `MermaidDiagram`, `DiagramNode`, `DiagramEdge`: Diagram model classes
+  - `MermaidConfig`: Configurable direction, max nodes, clustering, styling
+  - `DiagramDirection`, `NodeShape`: Enums for diagram customization
+- Large graph handling: max node filtering with entry point prioritization
+- Subgraph clustering by directory for better organization
+- Entry point and core module highlighting with CSS styles
+- Convenience functions: `generate_mermaid_diagram()`, `generate_mermaid_markdown()`
+- 25 tests covering all diagram generation scenarios
 
 ---
 

@@ -91,6 +91,20 @@ class DependencyGraph:
                 result.append(module)
         return result
 
+    def get_all_modules(self) -> list[Module]:
+        """
+        Get all modules in the graph.
+
+        Returns:
+            List of all modules
+        """
+        result = []
+        for node_id in self._graph.nodes:
+            module = self.get_module(Path(node_id))
+            if module:
+                result.append(module)
+        return result
+
     def get_entry_points(self) -> list[Module]:
         """
         Find modules with no incoming dependencies.
