@@ -439,12 +439,12 @@ Assembles analysis + summaries into the final onboarding document.
 - [x] Handle framework-specific patterns (e.g., decorators, annotations)
 - [x] Write cross-language regex accuracy tests
 
-### Phase 2.5: "Start Here" Algorithm ⏳
-- [ ] Define recommendation scoring function
-- [ ] Weight by: entry point status, change frequency, connectivity, complexity
-- [ ] Generate ordered list of starting files with explanations
-- [ ] Add "Start Here" section to guide output
-- [ ] Write recommendation tests
+### Phase 2.5: "Start Here" Algorithm ✅
+- [x] Define recommendation scoring function
+- [x] Weight by: entry point status, change frequency, connectivity, complexity
+- [x] Generate ordered list of starting files with explanations
+- [x] Add "Start Here" section to guide output
+- [x] Write recommendation tests
 
 ### Phase 2.6: Enhanced Output ⏳
 - [ ] Implement Mermaid diagram generator for dependency graph

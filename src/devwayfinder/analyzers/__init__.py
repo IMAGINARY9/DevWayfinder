@@ -9,6 +9,7 @@ This module provides code analysis capabilities:
 - GraphBuilder: Builds dependency graphs from analysis results
 - MetricsAnalyzer: Code complexity metrics (LOC, cyclomatic complexity)
 - GitAnalyzer: Git history analysis (contributors, change frequency)
+- StartHereRecommender: "Start Here" recommendation algorithm
 """
 
 from devwayfinder.analyzers.base import (
@@ -49,6 +50,12 @@ from devwayfinder.analyzers.regex_extractor import (
     RegexAnalyzer,
     analyze_with_regex,
 )
+from devwayfinder.analyzers.start_here import (
+    RecommendationConfig,
+    StartHereRecommender,
+    StartingPoint,
+    get_start_here_recommendations,
+)
 from devwayfinder.analyzers.structure import (
     DEFAULT_EXCLUDES,
     StructureAnalyzer,
@@ -77,8 +84,11 @@ __all__ = [
     "MetricsAnalyzer",
     "PythonASTAnalyzer",
     "PythonExtractionResult",
+    "RecommendationConfig",
     "RegexAnalyzer",
     "RepoGitInfo",
+    "StartHereRecommender",
+    "StartingPoint",
     "StructureAnalyzer",
     "StructureInfo",
     "analyze_python",
@@ -86,5 +96,6 @@ __all__ = [
     "analyze_with_regex",
     "build_dependency_graph",
     "get_python_imports",
+    "get_start_here_recommendations",
     "is_git_available",
 ]
