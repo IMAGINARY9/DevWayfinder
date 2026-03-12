@@ -7,6 +7,7 @@ This module provides code analysis capabilities:
 - RegexAnalyzer: Language-agnostic import/export extraction
 - PythonASTAnalyzer: Python-specific analysis using AST
 - GraphBuilder: Builds dependency graphs from analysis results
+- MetricsAnalyzer: Code complexity metrics (LOC, cyclomatic complexity)
 """
 
 from devwayfinder.analyzers.base import (
@@ -19,6 +20,13 @@ from devwayfinder.analyzers.graph_builder import (
     GraphBuilder,
     ImportResolver,
     build_dependency_graph,
+)
+from devwayfinder.analyzers.metrics import (
+    AggregateMetrics,
+    FileMetrics,
+    FunctionMetrics,
+    LOCMetrics,
+    MetricsAnalyzer,
 )
 from devwayfinder.analyzers.python_analyzer import (
     ClassInfo,
@@ -44,13 +52,18 @@ __all__ = [
     "DEFAULT_EXCLUDES",
     "EXTENSION_TO_LANGUAGE",
     "LANGUAGE_TO_EXTENSIONS",
+    "AggregateMetrics",
     "AnalyzerRegistry",
     "BaseAnalyzer",
     "ClassInfo",
     "ExtractionResult",
+    "FileMetrics",
     "FunctionInfo",
+    "FunctionMetrics",
     "GraphBuilder",
     "ImportResolver",
+    "LOCMetrics",
+    "MetricsAnalyzer",
     "PythonASTAnalyzer",
     "PythonExtractionResult",
     "RegexAnalyzer",

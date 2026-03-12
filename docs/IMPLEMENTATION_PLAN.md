@@ -402,12 +402,27 @@ Assembles analysis + summaries into the final onboarding document.
 - 29 tests covering storage, manager, and integration scenarios
 - Session hit rate tracking for monitoring cache effectiveness
 
-### Phase 2.2: Complexity Metrics ⏳
-- [ ] Implement LOC counter (per file and per module)
-- [ ] Implement cyclomatic complexity calculator (Python AST-based)
-- [ ] Add metrics to Module model output
-- [ ] Display metrics in guide output
-- [ ] Write metrics tests
+### Phase 2.2: Complexity Metrics ✅
+**Status:** Complete
+
+- [x] Implement LOC counter (per file and per module)
+- [x] Implement cyclomatic complexity calculator (Python AST-based)
+- [x] Add metrics to Module model output
+- [x] Display metrics in guide output
+- [x] Write metrics tests
+
+**Implementation Notes:**
+- Created `src/devwayfinder/analyzers/metrics.py` with:
+  - `LOCMetrics`: Lines of code (total, code, comments, blank, docstrings)
+  - `CyclomaticComplexityVisitor`: AST-based complexity calculation
+  - `MetricsAnalyzer`: Main analyzer with caching support
+  - `AggregateMetrics`: Project-level aggregation
+- Full Python AST analysis for accuracy
+- Heuristic fallback for non-Python files
+- Maintainability Index calculation (0-100 scale)
+- Function-level and class-level metrics
+- 33 tests covering all metrics functionality
+- Integrated with cache manager for performance
 
 ### Phase 2.3: Git Integration ⏳
 - [ ] Implement Git history analyzer (using gitpython)
