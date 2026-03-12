@@ -27,13 +27,17 @@ class ExtractionResult:
     docstring: str | None = None
     has_main_block: bool = False
     metadata: dict[str, Any] = field(default_factory=dict)
+    # Extended fields for Phase 2.4
+    decorators: list[str] = field(default_factory=list)
+    relative_imports: list[str] = field(default_factory=list)
+    framework_hints: list[str] = field(default_factory=list)
 
 
 # =============================================================================
 # IMPORT PATTERNS
 # =============================================================================
 
-# Python import patterns
+# Python import patterns (enhanced)
 PYTHON_IMPORT_PATTERNS = [
     # import module
     re.compile(r"^\s*import\s+([\w.]+)(?:\s+as\s+\w+)?", re.MULTILINE),
@@ -41,7 +45,12 @@ PYTHON_IMPORT_PATTERNS = [
     re.compile(r"^\s*from\s+([\w.]+)\s+import\s+", re.MULTILINE),
 ]
 
-# JavaScript/TypeScript import patterns
+# Python relative import pattern (phase 2.4)
+PYTHON_RELATIVE_IMPORT_PATTERN = re.compile(
+    r"^\s*from\s+(\.+[\w.]*)\s+import\s+", re.MULTILINE
+)
+
+# JavaScript/TypeScript import patterns (enhanced)
 JS_IMPORT_PATTERNS = [
     # import ... from 'module'
     re.compile(r"""^\s*import\s+.+?\s+from\s+['"]([^'"]+)['"]""", re.MULTILINE),
@@ -51,17 +60,29 @@ JS_IMPORT_PATTERNS = [
     re.compile(r"""require\s*\(\s*['"]([^'"]+)['"]\s*\)""", re.MULTILINE),
     # dynamic import('module')
     re.compile(r"""import\s*\(\s*['"]([^'"]+)['"]\s*\)""", re.MULTILINE),
+    # re-export from another module
+    re.compile(r"""^\s*export\s+.+?\s+from\s+['"]([^'"]+)['"]""", re.MULTILINE),
 ]
 
-# Go import patterns
+# TypeScript-specific patterns
+TS_IMPORT_PATTERNS = [
+    # import type { ... } from 'module'
+    re.compile(r"""^\s*import\s+type\s+.+?\s+from\s+['"]([^'"]+)['"]""", re.MULTILINE),
+    # Triple-slash reference
+    re.compile(r"""^\s*///\s*<reference\s+path\s*=\s*['"]([^'"]+)['"]""", re.MULTILINE),
+]
+
+# Go import patterns (enhanced)
 GO_IMPORT_PATTERNS = [
     # import "package"
     re.compile(r"""^\s*import\s+(?:[\w.]+\s+)?["']([^"']+)["']""", re.MULTILINE),
-    # import ( "package" )
+    # import ( "package" ) - multiline imports
     re.compile(r"""^\s*["']([^"']+)["']""", re.MULTILINE),
+    # Blank identifier import
+    re.compile(r"""^\s*_\s+["']([^"']+)["']""", re.MULTILINE),
 ]
 
-# Rust import patterns
+# Rust import patterns (enhanced)
 RUST_IMPORT_PATTERNS = [
     # use crate::module
     re.compile(r"^\s*use\s+([\w:]+)", re.MULTILINE),
@@ -193,6 +214,105 @@ DOCSTRING_PATTERNS = {
     "python_module": re.compile(r'^"""([^"]+)"""', re.MULTILINE),
 }
 
+# =============================================================================
+# DECORATOR PATTERNS (Phase 2.4)
+# =============================================================================
+
+DECORATOR_PATTERNS = {
+    "python": re.compile(r"^\s*@([\w.]+)(?:\s*\(|\s*$)", re.MULTILINE),
+    "java": re.compile(r"^\s*@(\w+)(?:\s*\(|\s*$)", re.MULTILINE),
+    "kotlin": re.compile(r"^\s*@(\w+)(?:\s*\(|\s*$)", re.MULTILINE),
+    "csharp": re.compile(r"^\s*\[(\w+)(?:\s*\(|\s*\])", re.MULTILINE),
+    "typescript": re.compile(r"^\s*@(\w+)(?:\s*\(|\s*$)", re.MULTILINE),
+}
+
+# =============================================================================
+# FRAMEWORK DETECTION PATTERNS (Phase 2.4)
+# =============================================================================
+
+# Python frameworks
+PYTHON_FRAMEWORK_PATTERNS = {
+    "flask": [
+        re.compile(r"from\s+flask\s+import", re.MULTILINE),
+        re.compile(r"@app\.route\s*\(", re.MULTILINE),
+        re.compile(r"Flask\s*\(", re.MULTILINE),
+    ],
+    "django": [
+        re.compile(r"from\s+django", re.MULTILINE),
+        re.compile(r"from\s+rest_framework", re.MULTILINE),
+        re.compile(r"class\s+\w+\s*\(\s*(?:models\.Model|View|APIView|ViewSet)", re.MULTILINE),
+    ],
+    "fastapi": [
+        re.compile(r"from\s+fastapi\s+import", re.MULTILINE),
+        re.compile(r"@app\.(?:get|post|put|delete|patch)\s*\(", re.MULTILINE),
+        re.compile(r"FastAPI\s*\(", re.MULTILINE),
+    ],
+    "pytest": [
+        re.compile(r"import\s+pytest", re.MULTILINE),
+        re.compile(r"@pytest\.", re.MULTILINE),
+        re.compile(r"def\s+test_\w+\s*\(", re.MULTILINE),
+    ],
+    "pydantic": [
+        re.compile(r"from\s+pydantic\s+import", re.MULTILINE),
+        re.compile(r"class\s+\w+\s*\(\s*BaseModel\s*\)", re.MULTILINE),
+    ],
+    "sqlalchemy": [
+        re.compile(r"from\s+sqlalchemy", re.MULTILINE),
+        re.compile(r"class\s+\w+\s*\(\s*Base\s*\)", re.MULTILINE),
+    ],
+}
+
+# JavaScript/TypeScript frameworks
+JS_FRAMEWORK_PATTERNS = {
+    "react": [
+        re.compile(r"""import\s+.*\s+from\s+['"]react['"]""", re.MULTILINE),
+        re.compile(r"React\.(?:Component|createElement)", re.MULTILINE),
+        re.compile(r"(?:useState|useEffect|useContext|useReducer|useCallback|useMemo|useRef)\s*\(", re.MULTILINE),
+    ],
+    "vue": [
+        re.compile(r"""import\s+.*\s+from\s+['"]vue['"]""", re.MULTILINE),
+        re.compile(r"defineComponent\s*\(", re.MULTILINE),
+        re.compile(r"(?:ref|reactive|computed|watch|onMounted)\s*\(", re.MULTILINE),
+    ],
+    "angular": [
+        re.compile(r"""import\s+.*\s+from\s+['"]@angular""", re.MULTILINE),
+        re.compile(r"@(?:Component|Injectable|Directive|Pipe|NgModule)\s*\(", re.MULTILINE),
+    ],
+    "express": [
+        re.compile(r"""require\s*\(\s*['"]express['"]\s*\)""", re.MULTILINE),
+        re.compile(r"""import\s+.*\s+from\s+['"]express['"]""", re.MULTILINE),
+        re.compile(r"app\.(?:get|post|put|delete|use)\s*\(", re.MULTILINE),
+    ],
+    "nextjs": [
+        re.compile(r"""import\s+.*\s+from\s+['"]next""", re.MULTILINE),
+        re.compile(r"getServerSideProps|getStaticProps|getStaticPaths", re.MULTILINE),
+    ],
+    "nestjs": [
+        re.compile(r"""import\s+.*\s+from\s+['"]@nestjs""", re.MULTILINE),
+        re.compile(r"@(?:Controller|Injectable|Module|Get|Post|Put|Delete)\s*\(", re.MULTILINE),
+    ],
+}
+
+# Java frameworks
+JAVA_FRAMEWORK_PATTERNS = {
+    "spring": [
+        re.compile(r"import\s+org\.springframework", re.MULTILINE),
+        re.compile(r"@(?:SpringBootApplication|RestController|Service|Repository|Autowired|Bean)\s*", re.MULTILINE),
+    ],
+    "junit": [
+        re.compile(r"import\s+org\.junit", re.MULTILINE),
+        re.compile(r"@Test\s*", re.MULTILINE),
+    ],
+}
+
+FRAMEWORK_PATTERNS_BY_LANGUAGE = {
+    "python": PYTHON_FRAMEWORK_PATTERNS,
+    "javascript": JS_FRAMEWORK_PATTERNS,
+    "typescript": JS_FRAMEWORK_PATTERNS,
+    "java": JAVA_FRAMEWORK_PATTERNS,
+    "kotlin": JAVA_FRAMEWORK_PATTERNS,
+}
+
 # Map language to patterns
 IMPORT_PATTERNS_BY_LANGUAGE: dict[str, list[re.Pattern[str]]] = {
     "python": PYTHON_IMPORT_PATTERNS,
@@ -308,6 +428,9 @@ class RegexAnalyzer(BaseAnalyzer):
                 "functions": extraction.functions,
                 "classes": extraction.classes,
                 "docstring": extraction.docstring,
+                "decorators": extraction.decorators,
+                "relative_imports": extraction.relative_imports,
+                "framework_hints": extraction.framework_hints,
             },
         )
 
@@ -394,6 +517,32 @@ class RegexAnalyzer(BaseAnalyzer):
             module_doc = DOCSTRING_PATTERNS["python_module"].search(content)
             if module_doc:
                 result.docstring = module_doc.group(1).strip()
+
+        # Phase 2.4: Extract relative imports
+        if language == "python":
+            rel_matches = PYTHON_RELATIVE_IMPORT_PATTERN.findall(content)
+            for match in rel_matches:
+                import_name = str(match).strip()
+                if import_name and import_name not in result.relative_imports:
+                    result.relative_imports.append(import_name)
+
+        # Phase 2.4: Extract decorators
+        decorator_pattern = DECORATOR_PATTERNS.get(language)
+        if decorator_pattern:
+            dec_matches = decorator_pattern.findall(content)
+            for match in dec_matches:
+                dec_name = str(match).strip()
+                if dec_name and dec_name not in result.decorators:
+                    result.decorators.append(dec_name)
+
+        # Phase 2.4: Detect frameworks
+        framework_patterns = FRAMEWORK_PATTERNS_BY_LANGUAGE.get(language, {})
+        for framework, patterns in framework_patterns.items():
+            for pattern in patterns:
+                if pattern.search(content):
+                    if framework not in result.framework_hints:
+                        result.framework_hints.append(framework)
+                    break
 
         return result
 

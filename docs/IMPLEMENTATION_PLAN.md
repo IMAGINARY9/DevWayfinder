@@ -432,12 +432,12 @@ Assembles analysis + summaries into the final onboarding document.
 - [x] Graceful handling when not a git repo
 - [x] Write git analyzer tests
 
-### Phase 2.4: Extended Regex Patterns ⏳
-- [ ] Audit regex accuracy on real-world projects (Python, TypeScript, Go, Rust, Java)
-- [ ] Add missing import/export patterns discovered from testing
-- [ ] Improve relative import resolution for common project structures
-- [ ] Handle framework-specific patterns (e.g., decorators, annotations)
-- [ ] Write cross-language regex accuracy tests
+### Phase 2.4: Extended Regex Patterns ✅
+- [x] Audit regex accuracy on real-world projects (Python, TypeScript, Go, Rust, Java)
+- [x] Add missing import/export patterns discovered from testing
+- [x] Improve relative import resolution for common project structures
+- [x] Handle framework-specific patterns (e.g., decorators, annotations)
+- [x] Write cross-language regex accuracy tests
 
 ### Phase 2.5: "Start Here" Algorithm ⏳
 - [ ] Define recommendation scoring function

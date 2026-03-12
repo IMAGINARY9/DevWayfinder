@@ -572,3 +572,293 @@ class TestExtensionMapping:
         assert EXTENSION_TO_LANGUAGE.get(".java") == "java"
         assert EXTENSION_TO_LANGUAGE.get(".c") == "c"
         assert EXTENSION_TO_LANGUAGE.get(".cpp") == "cpp"
+
+
+# =============================================================================
+# PHASE 2.4: EXTENDED REGEX PATTERN TESTS
+# =============================================================================
+
+
+class TestDecoratorExtraction:
+    """Tests for decorator extraction (Phase 2.4)."""
+
+    @pytest.mark.asyncio
+    async def test_python_decorators(self, tmp_path: Path) -> None:
+        """Test Python decorator extraction."""
+        py_file = tmp_path / "test.py"
+        py_file.write_text("""
+@dataclass
+class MyModel:
+    name: str
+
+@app.route('/api')
+def api_handler():
+    pass
+
+@pytest.fixture
+def setup():
+    pass
+
+@staticmethod
+def helper():
+    pass
+""")
+
+        analyzer = RegexAnalyzer()
+        result = await analyzer.analyze(py_file)
+
+        decorators = result.metadata.get("decorators", [])
+        assert "dataclass" in decorators
+        assert "app.route" in decorators
+        assert "pytest.fixture" in decorators
+        assert "staticmethod" in decorators
+
+
+class TestRelativeImports:
+    """Tests for relative import extraction (Phase 2.4)."""
+
+    @pytest.mark.asyncio
+    async def test_python_relative_imports(self, tmp_path: Path) -> None:
+        """Test Python relative import extraction."""
+        py_file = tmp_path / "test.py"
+        py_file.write_text("""
+from . import sibling
+from .. import parent
+from .utils import helper
+from ...pkg import module
+""")
+
+        analyzer = RegexAnalyzer()
+        result = await analyzer.analyze(py_file)
+
+        rel_imports = result.metadata.get("relative_imports", [])
+        assert "." in rel_imports
+        assert ".." in rel_imports
+        assert ".utils" in rel_imports
+        assert "...pkg" in rel_imports
+
+
+class TestFrameworkDetection:
+    """Tests for framework detection (Phase 2.4)."""
+
+    @pytest.mark.asyncio
+    async def test_detect_flask(self, tmp_path: Path) -> None:
+        """Test Flask framework detection."""
+        py_file = tmp_path / "app.py"
+        py_file.write_text("""
+from flask import Flask, jsonify
+
+app = Flask(__name__)
+
+@app.route('/hello')
+def hello():
+    return jsonify({'message': 'Hello, World!'})
+""")
+
+        analyzer = RegexAnalyzer()
+        result = await analyzer.analyze(py_file)
+
+        frameworks = result.metadata.get("framework_hints", [])
+        assert "flask" in frameworks
+
+    @pytest.mark.asyncio
+    async def test_detect_fastapi(self, tmp_path: Path) -> None:
+        """Test FastAPI framework detection."""
+        py_file = tmp_path / "main.py"
+        py_file.write_text("""
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get('/items')
+async def get_items():
+    return []
+""")
+
+        analyzer = RegexAnalyzer()
+        result = await analyzer.analyze(py_file)
+
+        frameworks = result.metadata.get("framework_hints", [])
+        assert "fastapi" in frameworks
+
+    @pytest.mark.asyncio
+    async def test_detect_django(self, tmp_path: Path) -> None:
+        """Test Django framework detection."""
+        py_file = tmp_path / "models.py"
+        py_file.write_text("""
+from django.db import models
+
+class User(models.Model):
+    name = models.CharField(max_length=100)
+""")
+
+        analyzer = RegexAnalyzer()
+        result = await analyzer.analyze(py_file)
+
+        frameworks = result.metadata.get("framework_hints", [])
+        assert "django" in frameworks
+
+    @pytest.mark.asyncio
+    async def test_detect_pytest(self, tmp_path: Path) -> None:
+        """Test pytest framework detection."""
+        py_file = tmp_path / "test_example.py"
+        py_file.write_text("""
+import pytest
+
+@pytest.fixture
+def client():
+    return TestClient()
+
+def test_hello(client):
+    response = client.get('/')
+    assert response.status_code == 200
+""")
+
+        analyzer = RegexAnalyzer()
+        result = await analyzer.analyze(py_file)
+
+        frameworks = result.metadata.get("framework_hints", [])
+        assert "pytest" in frameworks
+
+    @pytest.mark.asyncio
+    async def test_detect_react_ts(self, tmp_path: Path) -> None:
+        """Test React framework detection in TypeScript."""
+        ts_file = tmp_path / "component.tsx"
+        ts_file.write_text("""
+import React, { useState, useEffect } from 'react';
+
+const MyComponent = () => {
+    const [count, setCount] = useState(0);
+    
+    useEffect(() => {
+        document.title = `Count: ${count}`;
+    }, [count]);
+    
+    return <div>{count}</div>;
+};
+
+export default MyComponent;
+""")
+
+        analyzer = RegexAnalyzer()
+        result = await analyzer.analyze(ts_file)
+
+        frameworks = result.metadata.get("framework_hints", [])
+        assert "react" in frameworks
+
+    @pytest.mark.asyncio
+    async def test_detect_spring(self, tmp_path: Path) -> None:
+        """Test Spring framework detection in Java."""
+        java_file = tmp_path / "Controller.java"
+        java_file.write_text("""
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+public class UserController {
+    
+    @Autowired
+    private UserService userService;
+    
+    @GetMapping("/users")
+    public List<User> getUsers() {
+        return userService.findAll();
+    }
+}
+""")
+
+        analyzer = RegexAnalyzer()
+        result = await analyzer.analyze(java_file)
+
+        frameworks = result.metadata.get("framework_hints", [])
+        assert "spring" in frameworks
+
+    @pytest.mark.asyncio
+    async def test_no_framework_detected(self, tmp_path: Path) -> None:
+        """Test that plain code doesn't detect frameworks."""
+        py_file = tmp_path / "utils.py"
+        py_file.write_text("""
+def add(a, b):
+    return a + b
+
+def multiply(a, b):
+    return a * b
+""")
+
+        analyzer = RegexAnalyzer()
+        result = await analyzer.analyze(py_file)
+
+        frameworks = result.metadata.get("framework_hints", [])
+        assert len(frameworks) == 0
+
+
+class TestTypeScriptPatterns:
+    """Tests for TypeScript-specific patterns (Phase 2.4)."""
+
+    @pytest.mark.asyncio
+    async def test_typescript_imports(self, tmp_path: Path) -> None:
+        """Test TypeScript import extraction."""
+        ts_file = tmp_path / "service.ts"
+        ts_file.write_text("""
+import { Injectable } from '@nestjs/common';
+import type { User } from './types';
+import * as fs from 'fs';
+export { helper } from './utils';
+""")
+
+        analyzer = RegexAnalyzer()
+        result = await analyzer.analyze(ts_file)
+
+        assert "@nestjs/common" in result.imports
+        assert "fs" in result.imports
+        assert "./utils" in result.imports
+
+
+class TestCrossLanguagePatterns:
+    """Tests for cross-language regex accuracy (Phase 2.4)."""
+
+    @pytest.mark.asyncio
+    async def test_go_imports(self, tmp_path: Path) -> None:
+        """Test Go import extraction."""
+        go_file = tmp_path / "main.go"
+        go_file.write_text("""
+package main
+
+import (
+    "fmt"
+    "net/http"
+    _ "github.com/lib/pq"
+)
+
+func main() {
+    fmt.Println("Hello")
+}
+""")
+
+        analyzer = RegexAnalyzer()
+        result = await analyzer.analyze(go_file)
+
+        assert "fmt" in result.imports
+        assert result.is_entry_point
+
+    @pytest.mark.asyncio
+    async def test_rust_imports(self, tmp_path: Path) -> None:
+        """Test Rust import extraction."""
+        rs_file = tmp_path / "lib.rs"
+        rs_file.write_text("""
+use std::collections::HashMap;
+use crate::utils;
+
+mod internal;
+extern crate serde;
+
+pub fn process(data: &str) -> HashMap<String, String> {
+    HashMap::new()
+}
+""")
+
+        analyzer = RegexAnalyzer()
+        result = await analyzer.analyze(rs_file)
+
+        assert "std::collections::HashMap" in result.imports
+        assert "crate::utils" in result.imports
+        assert "process" in result.exports
