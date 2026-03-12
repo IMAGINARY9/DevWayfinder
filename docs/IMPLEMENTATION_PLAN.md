@@ -380,14 +380,27 @@ Assembles analysis + summaries into the final onboarding document.
 
 ## 5. MVP 2 Detailed Plan
 
-### Phase 2.1: Caching Layer ⏳
-- [ ] Implement cache storage backend (file-based, `.devwayfinder/cache/`)
-- [ ] Implement cache key generation (content hash per file)
-- [ ] Cache analysis results per file
-- [ ] Cache LLM summaries per content hash + model ID
-- [ ] Add cache hit/miss logging
-- [ ] Implement cache invalidation on content change
-- [ ] Write caching tests
+### Phase 2.1: Caching Layer ✅
+**Status:** Complete
+
+- [x] Implement cache storage backend (file-based, `.devwayfinder/cache/`)
+- [x] Implement cache key generation (content hash per file)
+- [x] Cache analysis results per file
+- [x] Cache LLM summaries per content hash + model ID
+- [x] Add cache hit/miss logging
+- [x] Implement cache invalidation on content change
+- [x] Write caching tests
+
+**Implementation Notes:**
+- Created `src/devwayfinder/cache/` module with:
+  - `storage.py`: File-based cache backend with SHA-256 content hashing
+  - `manager.py`: High-level API for analysis, summary, and metrics caching
+  - `__init__.py`: Clean public API exports
+- Cache entries stored in `.devwayfinder/cache/{analysis,summaries}/` directories
+- Content hash-based invalidation ensures stale entries are not used
+- TTL support for time-based expiry (optional)
+- 29 tests covering storage, manager, and integration scenarios
+- Session hit rate tracking for monitoring cache effectiveness
 
 ### Phase 2.2: Complexity Metrics ⏳
 - [ ] Implement LOC counter (per file and per module)
