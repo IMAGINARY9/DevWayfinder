@@ -271,7 +271,58 @@ Quality is lower but the tool remains functional for basic exploration.
 
 ---
 
-## 8. Troubleshooting
+## 8. Generating Onboarding Guides
+
+### 8.1 Basic Generation
+
+```bash
+# Generate guide with LLM summarization (default)
+devwayfinder generate ./path/to/project
+
+# Generate guide and save to file
+devwayfinder generate ./path/to/project -o ONBOARDING.md
+
+# Generate guide using heuristics only (no LLM needed)
+devwayfinder generate ./path/to/project --no-llm
+```
+
+### 8.2 Analyze Without Generating
+
+```bash
+# Analyze project structure
+devwayfinder analyze ./path/to/project
+
+# Verbose output shows core modules
+devwayfinder analyze ./path/to/project --verbose
+
+# JSON output for scripts
+devwayfinder analyze ./path/to/project --json
+```
+
+### 8.3 Generation Options
+
+| Option | Description |
+|--------|-------------|
+| `-o`, `--output PATH` | Write guide to file instead of stdout |
+| `--no-llm` | Use heuristic mode (no LLM required) |
+| `--no-graph` | Exclude Mermaid dependency diagram |
+| `--model-provider PROVIDER` | LLM provider to use |
+| `--base-url URL` | API endpoint URL |
+| `--api-key KEY` | API key (or set via `DEVWAYFINDER_API_KEY`) |
+| `-v`, `--verbose` | Enable verbose output |
+
+### 8.4 Example Output
+
+Generated guides include:
+- **Overview** — project name, primary language, build system
+- **Architecture** — directory structure, core modules
+- **Modules** — per-module descriptions with imports
+- **Dependencies** — relationship visualization
+- **Start Here** — recommended entry points
+
+---
+
+## 10. Troubleshooting
 
 ### Connection Issues
 
@@ -306,7 +357,7 @@ ollama serve
 
 ---
 
-## 9. Provider Interface
+## 11. Provider Interface
 
 DevWayfinder abstracts LLM backends behind a `ModelProvider` protocol:
 
@@ -327,7 +378,7 @@ To add a new provider, see [ARCHITECTURE.md](ARCHITECTURE.md) § Extension Point
 
 ---
 
-## 10. Caching
+## 12. Caching
 
 LLM responses are cached to avoid redundant API calls:
 

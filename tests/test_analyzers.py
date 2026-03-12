@@ -5,24 +5,16 @@ from pathlib import Path
 import pytest
 
 from devwayfinder.analyzers import (
+    EXTENSION_TO_LANGUAGE,
     AnalyzerRegistry,
-    BaseAnalyzer,
-    ExtractionResult,
     GraphBuilder,
     ImportResolver,
     PythonASTAnalyzer,
     RegexAnalyzer,
     StructureAnalyzer,
-    StructureInfo,
-    analyze_python,
-    analyze_structure,
-    analyze_with_regex,
     build_dependency_graph,
     get_python_imports,
-    EXTENSION_TO_LANGUAGE,
 )
-from devwayfinder.core.protocols import AnalysisResult
-
 
 # =============================================================================
 # ANALYZER REGISTRY TESTS
@@ -516,7 +508,7 @@ class TestGraphBuilder:
     async def test_detect_entry_points(self, tmp_project: Path) -> None:
         """Test entry point detection in graph."""
         builder = GraphBuilder()
-        project, graph = await builder.build(tmp_project)
+        _project, graph = await builder.build(tmp_project)
 
         entry_points = graph.get_entry_points()
         entry_names = [m.name for m in entry_points]
@@ -534,7 +526,7 @@ class TestGraphBuilder:
         (proj / "b.py").write_text("def func(): pass\n")
 
         builder = GraphBuilder()
-        project, graph = await builder.build(proj)
+        _project, graph = await builder.build(proj)
 
         # Graph should have both modules
         assert graph.node_count >= 2
