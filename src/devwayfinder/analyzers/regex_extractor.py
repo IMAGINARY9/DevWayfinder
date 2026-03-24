@@ -46,9 +46,7 @@ PYTHON_IMPORT_PATTERNS = [
 ]
 
 # Python relative import pattern (phase 2.4)
-PYTHON_RELATIVE_IMPORT_PATTERN = re.compile(
-    r"^\s*from\s+(\.+[\w.]*)\s+import\s+", re.MULTILINE
-)
+PYTHON_RELATIVE_IMPORT_PATTERN = re.compile(r"^\s*from\s+(\.+[\w.]*)\s+import\s+", re.MULTILINE)
 
 # JavaScript/TypeScript import patterns (enhanced)
 JS_IMPORT_PATTERNS = [
@@ -149,17 +147,19 @@ PYTHON_EXPORT_PATTERNS = {
 
 # JavaScript/TypeScript export patterns
 JS_EXPORT_PATTERNS = {
-    "functions": re.compile(
-        r"^\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\(", re.MULTILINE
-    ),
+    "functions": re.compile(r"^\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\(", re.MULTILINE),
     "classes": re.compile(r"^\s*(?:export\s+)?class\s+(\w+)", re.MULTILINE),
-    "exports": re.compile(r"^\s*export\s+(?:default\s+)?(?:const|let|var|function|class)\s+(\w+)", re.MULTILINE),
+    "exports": re.compile(
+        r"^\s*export\s+(?:default\s+)?(?:const|let|var|function|class)\s+(\w+)", re.MULTILINE
+    ),
     "module_exports": re.compile(r"module\.exports\s*=\s*\{([^}]+)\}", re.MULTILINE | re.DOTALL),
 }
 
 # Go export patterns (public = starts with uppercase)
 GO_EXPORT_PATTERNS = {
-    "functions": re.compile(r"^\s*func\s+(?:\(\s*\w+\s+[*]?\w+\s*\)\s+)?([A-Z]\w*)\s*\(", re.MULTILINE),
+    "functions": re.compile(
+        r"^\s*func\s+(?:\(\s*\w+\s+[*]?\w+\s*\)\s+)?([A-Z]\w*)\s*\(", re.MULTILINE
+    ),
     "types": re.compile(r"^\s*type\s+([A-Z]\w*)\s+", re.MULTILINE),
 }
 
@@ -183,7 +183,9 @@ JAVA_EXPORT_PATTERNS = {
 
 # C# export patterns
 CSHARP_EXPORT_PATTERNS = {
-    "classes": re.compile(r"^\s*(?:public\s+)?(?:partial\s+)?(?:abstract\s+)?class\s+(\w+)", re.MULTILINE),
+    "classes": re.compile(
+        r"^\s*(?:public\s+)?(?:partial\s+)?(?:abstract\s+)?class\s+(\w+)", re.MULTILINE
+    ),
     "interfaces": re.compile(r"^\s*(?:public\s+)?interface\s+(\w+)", re.MULTILINE),
     "methods": re.compile(
         r"^\s*(?:public|protected|internal)\s+(?:static\s+)?(?:async\s+)?[\w<>,\s]+\s+(\w+)\s*\(",
@@ -267,7 +269,10 @@ JS_FRAMEWORK_PATTERNS = {
     "react": [
         re.compile(r"""import\s+.*\s+from\s+['"]react['"]""", re.MULTILINE),
         re.compile(r"React\.(?:Component|createElement)", re.MULTILINE),
-        re.compile(r"(?:useState|useEffect|useContext|useReducer|useCallback|useMemo|useRef)\s*\(", re.MULTILINE),
+        re.compile(
+            r"(?:useState|useEffect|useContext|useReducer|useCallback|useMemo|useRef)\s*\(",
+            re.MULTILINE,
+        ),
     ],
     "vue": [
         re.compile(r"""import\s+.*\s+from\s+['"]vue['"]""", re.MULTILINE),
@@ -297,7 +302,10 @@ JS_FRAMEWORK_PATTERNS = {
 JAVA_FRAMEWORK_PATTERNS = {
     "spring": [
         re.compile(r"import\s+org\.springframework", re.MULTILINE),
-        re.compile(r"@(?:SpringBootApplication|RestController|Service|Repository|Autowired|Bean)\s*", re.MULTILINE),
+        re.compile(
+            r"@(?:SpringBootApplication|RestController|Service|Repository|Autowired|Bean)\s*",
+            re.MULTILINE,
+        ),
     ],
     "junit": [
         re.compile(r"import\s+org\.junit", re.MULTILINE),
@@ -503,7 +511,11 @@ class RegexAnalyzer(BaseAnalyzer):
             if key not in ("functions", "classes", "__all__", "module_exports"):
                 matches = pattern.findall(content)
                 for match in matches:
-                    name = str(match).strip() if not isinstance(match, tuple) else str(match[0]).strip()
+                    name = (
+                        str(match).strip()
+                        if not isinstance(match, tuple)
+                        else str(match[0]).strip()
+                    )
                     if name and name not in result.exports:
                         result.exports.append(name)
 

@@ -252,9 +252,7 @@ class GraphBuilder:
                     graph.add_dependency(file_path, target_path, kind="import")
 
         # Log stats
-        logger.info(
-            f"Built graph: {graph.node_count} modules, {graph.edge_count} dependencies"
-        )
+        logger.info(f"Built graph: {graph.node_count} modules, {graph.edge_count} dependencies")
 
         if graph.has_cycles():
             cycles = graph.find_cycles()

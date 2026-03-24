@@ -105,9 +105,7 @@ class TestGenerateCommand:
         """Test generate command writes output to file."""
         # Create a simple Python project
         (tmp_path / "src").mkdir()
-        (tmp_path / "src" / "main.py").write_text(
-            '"""Main module."""\n\ndef main():\n    pass\n'
-        )
+        (tmp_path / "src" / "main.py").write_text('"""Main module."""\n\ndef main():\n    pass\n')
         (tmp_path / "pyproject.toml").write_text('[project]\nname = "test-project"\n')
 
         output_file = tmp_path / "ONBOARDING.md"
@@ -162,7 +160,7 @@ class TestInitCommand:
     def test_init_detects_python_project(self, tmp_path: Path) -> None:
         """Test init auto-detects Python projects."""
         # Create a Python project indicator
-        (tmp_path / "pyproject.toml").write_text("[project]\\nname = \"test\"")
+        (tmp_path / "pyproject.toml").write_text('[project]\\nname = "test"')
 
         result = runner.invoke(app, ["init", str(tmp_path)])
         assert result.exit_code == 0

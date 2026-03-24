@@ -316,9 +316,7 @@ class TestMermaidGenerator:
         diagram = generator.generate(graph)
 
         # Should have subgraphs for src and tests
-        assert "src" in diagram.subgraphs or any(
-            n.subgraph == "src" for n in diagram.nodes
-        )
+        assert "src" in diagram.subgraphs or any(n.subgraph == "src" for n in diagram.nodes)
 
 
 # =============================================================================
@@ -361,15 +359,11 @@ class TestNodeShapes:
             (NodeShape.DIAMOND, "{"),
         ],
     )
-    def test_node_shape_rendering(
-        self, shape: NodeShape, expected_char: str
-    ) -> None:
+    def test_node_shape_rendering(self, shape: NodeShape, expected_char: str) -> None:
         """Test that node shapes render correctly."""
         config = MermaidConfig(node_shape=shape)
         diagram = MermaidDiagram(config=config)
-        diagram.nodes = [
-            DiagramNode(id="test", label="test.py", module_path=Path("/test.py"))
-        ]
+        diagram.nodes = [DiagramNode(id="test", label="test.py", module_path=Path("/test.py"))]
         result = diagram.render()
         assert expected_char in result
 

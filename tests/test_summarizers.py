@@ -80,9 +80,7 @@ def mock_provider() -> MagicMock:
     provider = MagicMock()
     provider.name = "mock_provider"
     provider.summarize = AsyncMock(return_value="This is a mock summary.")
-    provider.health_check = AsyncMock(
-        return_value=HealthStatus(healthy=True, message="OK")
-    )
+    provider.health_check = AsyncMock(return_value=HealthStatus(healthy=True, message="OK"))
     return provider
 
 
@@ -157,9 +155,7 @@ class TestPromptTemplates:
 class TestContextBuilder:
     """Test context building functionality."""
 
-    def test_from_module(
-        self, project_root: Path, sample_module: Module
-    ) -> None:
+    def test_from_module(self, project_root: Path, sample_module: Module) -> None:
         """Should build context from Module."""
         builder = ContextBuilder(project_root)
         context = builder.from_module(sample_module)
@@ -168,9 +164,7 @@ class TestContextBuilder:
         assert "os" in context.imports
         assert "SampleClass" in context.exports
 
-    def test_from_module_with_graph(
-        self, project_root: Path, sample_module: Module
-    ) -> None:
+    def test_from_module_with_graph(self, project_root: Path, sample_module: Module) -> None:
         """Should include neighbors when graph provided."""
         from devwayfinder.core.graph import DependencyGraph
 
@@ -205,9 +199,7 @@ class TestContextBuilder:
         assert context.metadata["build_system"] == "poetry"
         assert context.metadata["module_count"] == 1
 
-    def test_for_entry_point(
-        self, project_root: Path, entry_point_module: Module
-    ) -> None:
+    def test_for_entry_point(self, project_root: Path, entry_point_module: Module) -> None:
         """Should build entry point context with special metadata."""
         builder = ContextBuilder(project_root)
         context = builder.for_entry_point(entry_point_module)
@@ -363,9 +355,7 @@ class TestSummarizationController:
         config = SummarizationConfig(providers=[mock_provider])
         controller = SummarizationController(project_root, config)
 
-        result = await controller.summarize_architecture(
-            sample_project, mock_structure_info
-        )
+        result = await controller.summarize_architecture(sample_project, mock_structure_info)
 
         assert result.success
         assert result.summary_type == SummarizationType.ARCHITECTURE
@@ -433,9 +423,7 @@ class TestHeuristicSummaries:
     """Test heuristic (non-LLM) summary generation."""
 
     @pytest.mark.asyncio
-    async def test_module_heuristic_with_docstring(
-        self, project_root: Path
-    ) -> None:
+    async def test_module_heuristic_with_docstring(self, project_root: Path) -> None:
         """Heuristic should use docstring when available."""
         Module(
             name="documented.py",
@@ -457,9 +445,7 @@ class TestHeuristicSummaries:
         assert "authentication" in summary.lower()
 
     @pytest.mark.asyncio
-    async def test_module_heuristic_with_signatures(
-        self, project_root: Path
-    ) -> None:
+    async def test_module_heuristic_with_signatures(self, project_root: Path) -> None:
         """Heuristic should describe signatures."""
         controller = SummarizationController(project_root)
         context = SummarizationContext(
@@ -473,9 +459,7 @@ class TestHeuristicSummaries:
         assert "def parse_json" in summary or "Provides" in summary
 
     @pytest.mark.asyncio
-    async def test_architecture_heuristic(
-        self, project_root: Path
-    ) -> None:
+    async def test_architecture_heuristic(self, project_root: Path) -> None:
         """Heuristic architecture summary should include key info."""
         controller = SummarizationController(project_root)
         context = SummarizationContext(
@@ -495,9 +479,7 @@ class TestHeuristicSummaries:
         assert "42" in summary
 
     @pytest.mark.asyncio
-    async def test_entry_point_heuristic(
-        self, project_root: Path
-    ) -> None:
+    async def test_entry_point_heuristic(self, project_root: Path) -> None:
         """Heuristic entry point summary should guide exploration."""
         controller = SummarizationController(project_root)
         context = SummarizationContext(

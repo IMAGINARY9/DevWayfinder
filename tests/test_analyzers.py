@@ -209,7 +209,9 @@ export class MyComponent {}
         assert result.language == "javascript"
         assert "react" in result.imports
         assert "lodash" in result.imports
-        assert "myFunction" in result.exports or "myFunction" in result.metadata.get("functions", [])
+        assert "myFunction" in result.exports or "myFunction" in result.metadata.get(
+            "functions", []
+        )
 
     @pytest.mark.asyncio
     async def test_analyze_go_file(self, tmp_path: Path) -> None:
@@ -729,11 +731,11 @@ import React, { useState, useEffect } from 'react';
 
 const MyComponent = () => {
     const [count, setCount] = useState(0);
-    
+
     useEffect(() => {
         document.title = `Count: ${count}`;
     }, [count]);
-    
+
     return <div>{count}</div>;
 };
 
@@ -755,10 +757,10 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 public class UserController {
-    
+
     @Autowired
     private UserService userService;
-    
+
     @GetMapping("/users")
     public List<User> getUsers() {
         return userService.findAll();

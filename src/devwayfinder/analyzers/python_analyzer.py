@@ -190,9 +190,7 @@ class PythonASTAnalyzer(BaseAnalyzer):
                         if isinstance(node.value, ast.List):
                             result.all_definition = []
                             for elt in node.value.elts:
-                                if isinstance(elt, ast.Constant) and isinstance(
-                                    elt.value, str
-                                ):
+                                if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
                                     result.all_definition.append(elt.value)
                     # Track global variables
                     elif isinstance(target, ast.Name):

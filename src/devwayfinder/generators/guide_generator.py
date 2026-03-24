@@ -38,10 +38,20 @@ class GenerationConfig:
 
     # Analysis options
     include_hidden: bool = False
-    exclude_patterns: list[str] = field(default_factory=lambda: [
-        "__pycache__", ".git", ".venv", "venv", "node_modules",
-        "*.egg-info", "dist", "build", ".tox", ".pytest_cache",
-    ])
+    exclude_patterns: list[str] = field(
+        default_factory=lambda: [
+            "__pycache__",
+            ".git",
+            ".venv",
+            "venv",
+            "node_modules",
+            "*.egg-info",
+            "dist",
+            "build",
+            ".tox",
+            ".pytest_cache",
+        ]
+    )
 
     # Summarization options
     use_llm: bool = True
@@ -371,11 +381,13 @@ class GuideGenerator:
                         module_lines.append(f"*Imports:* {', '.join(module.imports[:5])}")
                     module_lines.append("")
 
-                subsections.append(Section(
-                    section_type=SectionType.CUSTOM,
-                    title=f"`{directory}`",
-                    content="\n".join(module_lines),
-                ))
+                subsections.append(
+                    Section(
+                        section_type=SectionType.CUSTOM,
+                        title=f"`{directory}`",
+                        content="\n".join(module_lines),
+                    )
+                )
 
         return Section(
             section_type=SectionType.MODULES,
@@ -453,7 +465,9 @@ class GuideGenerator:
                     lines.append("")
             else:
                 lines.append("No clear entry points detected.")
-                lines.append("Consider starting with the most-connected modules in the Architecture section.")
+                lines.append(
+                    "Consider starting with the most-connected modules in the Architecture section."
+                )
 
         return Section(
             section_type=SectionType.START_HERE,

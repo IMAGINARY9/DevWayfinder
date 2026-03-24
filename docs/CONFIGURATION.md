@@ -2,20 +2,20 @@
 
 > **Version:** 1.0.0  
 > **Status:** Active  
-> **Last Updated:** 2026-03-08  
+> **Last Updated:** 2026-03-24  
 > **Authoritative Source:** This document is the single source of truth for configuration options.
 
 ---
 
 ## 1. Overview
 
-DevWayfinder configuration is loaded from multiple sources with the following precedence (highest to lowest):
+Current runtime configuration (MVP 2) is resolved with the following precedence (highest to lowest):
 
-1. **CLI arguments** — `--model-provider openai_compat`
-2. **Environment variables** — `DEVWAYFINDER_MODEL_PROVIDER=openai_compat`
-3. **Project config** — `.devwayfinder/config.yaml`
-4. **User config** — `~/.devwayfinder/config.yaml`
-5. **Built-in defaults**
+1. **CLI arguments** — e.g. `--model-provider openai_compat`
+2. **Environment variables** — e.g. `DEVWAYFINDER_MODEL_PROVIDER=openai_compat`
+3. **Built-in provider defaults**
+
+`devwayfinder init` scaffolds `.devwayfinder/config.yaml` templates, but full project/user YAML config loading hierarchy is planned work (see [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md), Phase 1.4 follow-up).
 
 ---
 
@@ -75,7 +75,7 @@ logging:
 
 ## 3. Configuration Sections
 
-### 3.1 Model Configuration
+### 3.1 Model Configuration (Runtime Supported)
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -87,7 +87,10 @@ logging:
 | `model.max_tokens` | `int` | `512` | Maximum tokens per response |
 | `model.temperature` | `float` | `0.3` | Sampling temperature (0.0-1.0) |
 
-### 3.2 Analysis Configuration
+### 3.2 Analysis Configuration (Template/Planned)
+
+Analysis and output keys in generated templates are intended for upcoming config-loader integration. Current runtime behavior for analysis/output is primarily controlled by CLI flags and built-in defaults.
+
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -98,7 +101,7 @@ logging:
 | `analysis.enable_metrics` | `bool` | `true` | Compute complexity metrics |
 | `analysis.analysis_layers` | `list[str]` | `[ast, regex, llm]` | Analysis methods in priority order. `tree_sitter` available as optional extra. |
 
-### 3.3 Output Configuration
+### 3.3 Output Configuration (Template/Planned)
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -108,7 +111,7 @@ logging:
 | `output.include_metrics` | `bool` | `true` | Include complexity metrics |
 | `output.graph_format` | `string` | `mermaid` | Graph format: `mermaid`, `ascii`, `dot` |
 
-### 3.4 Cache Configuration
+### 3.4 Cache Configuration (Partially Runtime)
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -116,7 +119,7 @@ logging:
 | `cache.directory` | `string` | `.devwayfinder/cache` | Cache directory path |
 | `cache.ttl_days` | `int` | `30` | Cache entry time-to-live |
 
-### 3.5 Logging Configuration
+### 3.5 Logging Configuration (Planned)
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -127,7 +130,7 @@ logging:
 
 ## 4. Environment Variables
 
-All configuration options can be set via environment variables:
+The following environment variables are currently consumed at runtime by provider configuration:
 
 ```bash
 # Format: DEVWAYFINDER_{SECTION}_{KEY} (uppercase, underscores)
@@ -138,19 +141,9 @@ DEVWAYFINDER_MODEL_NAME=
 DEVWAYFINDER_MODEL_BASE_URL=http://127.0.0.1:5000/v1
 DEVWAYFINDER_API_KEY=local
 
-# Analysis configuration
-DEVWAYFINDER_ANALYSIS_ENABLE_GIT=true
-DEVWAYFINDER_ANALYSIS_ENABLE_METRICS=true
-
-# Output configuration
-DEVWAYFINDER_OUTPUT_FORMAT=markdown
-DEVWAYFINDER_OUTPUT_INCLUDE_GRAPH=true
-
-# Cache configuration
-DEVWAYFINDER_CACHE_ENABLED=true
-
-# Logging configuration
-DEVWAYFINDER_LOGGING_LEVEL=DEBUG
+DEVWAYFINDER_MODEL_TIMEOUT=120
+DEVWAYFINDER_MODEL_MAX_TOKENS=512
+DEVWAYFINDER_MODEL_TEMPERATURE=0.3
 ```
 
 ---
@@ -163,14 +156,11 @@ CLI arguments override all other configuration:
 devwayfinder generate ./project \
   --model-provider openai_compat \
   --base-url http://127.0.0.1:5000/v1 \
-  --no-llm \                      # Use heuristic mode
+  --no-llm \
   --output ./ONBOARDING.md \
   --no-graph \
   --no-metrics \
-  --include "**/*.py" \
-  --exclude "**/tests/**" \
-  --verbose \                     # DEBUG logging
-  --quiet                         # WARNING logging only
+  --verbose
 ```
 
 ---
@@ -252,7 +242,9 @@ Templates are searched in order:
 
 ---
 
-## 8. Profiles
+## 8. Profiles (Planned)
+
+Named profile activation is a planned capability and is not currently exposed as a stable CLI/runtime feature.
 
 Pre-configured profiles for common use cases:
 
@@ -294,18 +286,17 @@ devwayfinder generate ./project --profile thorough
 
 ---
 
-## 9. Validation
+## 9. Validation (Planned)
+
+Dedicated `devwayfinder validate` command support is planned and not currently available in MVP 2.
 
 Validate configuration without running analysis:
 
-```bash
-devwayfinder validate
-# Checks:
-# - Config file syntax
-# - Model provider connectivity
-# - Directory permissions
-# - Pattern validity
-```
+Planned validation scope:
+- Config file syntax
+- Model provider connectivity
+- Directory permissions
+- Pattern validity
 
 ---
 

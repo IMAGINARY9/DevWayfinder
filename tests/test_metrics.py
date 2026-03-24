@@ -290,9 +290,7 @@ if __name__ == "__main__":
         file_path.write_text(content)
         return file_path
 
-    def test_analyze_python_file(
-        self, analyzer: MetricsAnalyzer, sample_python_file: Path
-    ) -> None:
+    def test_analyze_python_file(self, analyzer: MetricsAnalyzer, sample_python_file: Path) -> None:
         """Test analyzing a Python file."""
         metrics = analyzer.analyze_file(sample_python_file)
 
@@ -304,9 +302,7 @@ if __name__ == "__main__":
         assert metrics.class_count == 1
         assert metrics.cyclomatic_complexity > 1  # Has some complexity
 
-    def test_loc_calculation(
-        self, analyzer: MetricsAnalyzer, tmp_path: Path
-    ) -> None:
+    def test_loc_calculation(self, analyzer: MetricsAnalyzer, tmp_path: Path) -> None:
         """Test LOC calculation."""
         content = '''"""Module docstring."""
 
@@ -336,9 +332,7 @@ x = 1
         assert metrics.maintainability_index is not None
         assert 0 <= metrics.maintainability_index <= 100
 
-    def test_max_complexity(
-        self, analyzer: MetricsAnalyzer, tmp_path: Path
-    ) -> None:
+    def test_max_complexity(self, analyzer: MetricsAnalyzer, tmp_path: Path) -> None:
         """Test max complexity tracking."""
         content = """
 def simple():
@@ -357,9 +351,7 @@ def complex_func(a, b, c):
         metrics = analyzer.analyze_file(file_path)
 
         # Find the complex function
-        complex_func = next(
-            (f for f in metrics.functions if f.name == "complex_func"), None
-        )
+        complex_func = next((f for f in metrics.functions if f.name == "complex_func"), None)
         assert complex_func is not None
         assert complex_func.complexity > 1
         assert metrics.max_complexity == complex_func.complexity
@@ -371,9 +363,7 @@ def complex_func(a, b, c):
         assert len(metrics.errors) > 0
         assert "Failed to read file" in metrics.errors[0]
 
-    def test_syntax_error_fallback(
-        self, analyzer: MetricsAnalyzer, tmp_path: Path
-    ) -> None:
+    def test_syntax_error_fallback(self, analyzer: MetricsAnalyzer, tmp_path: Path) -> None:
         """Test fallback on syntax error."""
         content = """
 def broken
@@ -389,9 +379,7 @@ def broken
         # Should still calculate LOC and heuristic complexity
         assert metrics.loc.total > 0
 
-    def test_heuristic_complexity(
-        self, analyzer: MetricsAnalyzer, tmp_path: Path
-    ) -> None:
+    def test_heuristic_complexity(self, analyzer: MetricsAnalyzer, tmp_path: Path) -> None:
         """Test heuristic complexity for non-Python files."""
         content = """
 function process(items) {
@@ -412,9 +400,7 @@ function process(items) {
         assert metrics.language == "javascript"
         assert metrics.cyclomatic_complexity > 1  # Has for and if
 
-    def test_to_dict(
-        self, analyzer: MetricsAnalyzer, sample_python_file: Path
-    ) -> None:
+    def test_to_dict(self, analyzer: MetricsAnalyzer, sample_python_file: Path) -> None:
         """Test dictionary conversion."""
         metrics = analyzer.analyze_file(sample_python_file)
         d = metrics.to_dict()
@@ -425,9 +411,7 @@ function process(items) {
         assert "cyclomatic_complexity" in d
         assert "functions" in d
 
-    def test_analyze_directory(
-        self, analyzer: MetricsAnalyzer, tmp_path: Path
-    ) -> None:
+    def test_analyze_directory(self, analyzer: MetricsAnalyzer, tmp_path: Path) -> None:
         """Test analyzing a directory."""
         # Create some files
         (tmp_path / "main.py").write_text("def main(): pass")
@@ -439,9 +423,7 @@ function process(items) {
         assert len(results) == 2  # Only .py files
         assert all(m.language == "python" for m in results)
 
-    def test_analyze_directory_exclusions(
-        self, analyzer: MetricsAnalyzer, tmp_path: Path
-    ) -> None:
+    def test_analyze_directory_exclusions(self, analyzer: MetricsAnalyzer, tmp_path: Path) -> None:
         """Test directory analysis with exclusions."""
         (tmp_path / "main.py").write_text("def main(): pass")
 

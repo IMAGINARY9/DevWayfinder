@@ -2,7 +2,7 @@
 
 > **Version:** 1.1.0  
 > **Status:** Active  
-> **Last Updated:** 2026-03-09  
+> **Last Updated:** 2026-03-24  
 > **Authoritative Source:** This document is the single source of truth for project requirements.
 
 ---
@@ -274,7 +274,24 @@ The following are explicitly **not** in scope for this project:
 
 ---
 
-## 9. Glossary
+## 9. Strategic Positioning Inputs (March 2026)
+
+The external "Architext vs DevWayfinder" comparative assessment was reviewed to validate requirement direction.
+
+### 9.1 Positioning Requirements Implication
+
+- DevWayfinder remains **developer-first onboarding tooling** (human UX, quick adoption), not an enterprise semantic indexing platform.
+- Requirements should continue prioritizing **usability, speed, and offline-capable operation** over heavyweight retrieval architecture.
+
+### 9.2 Priority Reinforcements
+
+- Keep **NFR-020 (zero-config baseline)** and **NFR-011 (LLM fallback)** as core quality gates.
+- Maintain emphasis on **FR-050/FR-051 CLI workflows** as the primary product path until MVP 3 extension maturity.
+- Preserve VS Code extension scope as incremental and quality-gated to reduce delivery risk.
+
+---
+
+## 10. Glossary
 
 | Term | Definition |
 |------|------------|

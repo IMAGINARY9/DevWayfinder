@@ -2,7 +2,7 @@
 
 > **Version:** 2.1.0  
 > **Status:** MVP 2 Complete  
-> **Last Updated:** 2026-03-09  
+> **Last Updated:** 2026-03-24  
 > **Authoritative Source:** This document is the single source of truth for development roadmap and milestones.
 
 ---
@@ -661,7 +661,34 @@ The guide catalog appears as a dedicated panel in the VS Code sidebar, similar t
 
 ---
 
-## 9. Technical Debt Register
+## 9. External Comparative Assessment Inputs (2026-03-18)
+
+The external "Architext vs DevWayfinder" analysis was reviewed and distilled into planning-relevant inputs.
+
+### 9.1 Confirmed Positioning
+
+- DevWayfinder is treated as a **sister/spiritual-successor project** in the same ecosystem, not a direct fork.
+- Product focus remains **developer onboarding UX** (CLI-first, extension next), while deeper agent-centric semantic intelligence is out of current scope.
+
+### 9.2 Confirmed Strengths to Preserve
+
+- **Low overhead analysis path** (AST/regex + heuristic fallback)
+- **Offline-capable workflow** (no LLM required for baseline utility)
+- **Fast onboarding output generation** over heavyweight indexing pipelines
+
+### 9.3 Execution Risks to Track in Upcoming MVPs
+
+- MVP 3 delivery risk: VS Code extension integration complexity
+- MVP 3-4 delivery risk: plugin architecture cohesion and maintainability
+- MVP 5 delivery risk: distribution/packaging quality gates across platforms
+
+### 9.4 Roadmap Actions
+
+- Keep MVP 3 scope minimal and demonstrable first (installable VSIX, generate/analyze command bridge).
+- Keep plugin APIs narrow initially (single analyzer registration path) before broad extension points.
+- Preserve heuristic-mode quality as a release criterion in all upcoming MVPs.
+
+## 10. Technical Debt Register
 
 | ID | Description | Severity | Target |
 |----|-------------|----------|--------|
@@ -672,7 +699,7 @@ The guide catalog appears as a dedicated panel in the VS Code sidebar, similar t
 
 ---
 
-## 10. Risk Register
+## 11. Risk Register
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
@@ -684,7 +711,7 @@ The guide catalog appears as a dedicated panel in the VS Code sidebar, similar t
 
 ---
 
-## 11. Definition of Done
+## 12. Definition of Done
 
 A feature/phase is considered complete when:
 

@@ -84,10 +84,7 @@ class ContextBuilder:
             SummarizationContext with rich Python-specific info
         """
         # Build function signatures
-        signatures = [
-            f"def {f.name}({', '.join(f.parameters)})"
-            for f in analysis.functions[:15]
-        ]
+        signatures = [f"def {f.name}({', '.join(f.parameters)})" for f in analysis.functions[:15]]
 
         # Add class signatures
         for cls in analysis.classes[:10]:
@@ -252,9 +249,7 @@ class ContextBuilder:
 
         # Enhance metadata for entry point focus
         context.metadata["is_entry_point"] = True
-        context.metadata["suggested_exploration"] = self._suggest_next_steps(
-            module, graph
-        )
+        context.metadata["suggested_exploration"] = self._suggest_next_steps(module, graph)
 
         return context
 

@@ -30,7 +30,6 @@ except ImportError:
     GitCommandError = Exception  # type: ignore[misc, assignment]
 
 
-
 @dataclass
 class ContributorInfo:
     """Information about a contributor."""
@@ -263,17 +262,11 @@ class GitAnalyzer:
             return
 
         # First and last commits
-        info.last_commit = datetime.fromtimestamp(
-            commits[0].committed_date, tz=UTC
-        )
-        info.first_commit = datetime.fromtimestamp(
-            commits[-1].committed_date, tz=UTC
-        )
+        info.last_commit = datetime.fromtimestamp(commits[0].committed_date, tz=UTC)
+        info.first_commit = datetime.fromtimestamp(commits[-1].committed_date, tz=UTC)
 
         for commit in commits:
-            commit_date = datetime.fromtimestamp(
-                commit.committed_date, tz=UTC
-            )
+            commit_date = datetime.fromtimestamp(commit.committed_date, tz=UTC)
             author_email = commit.author.email or "unknown"
             author_name = commit.author.name or "Unknown"
 
@@ -299,9 +292,7 @@ class GitAnalyzer:
                     if file_path:
                         if file_path not in file_commits:
                             file_commits[file_path] = []
-                        file_commits[file_path].append(
-                            (commit_date, author_name, author_email)
-                        )
+                        file_commits[file_path].append((commit_date, author_name, author_email))
             except Exception:
                 # Some commits might not have valid diffs
                 pass
@@ -338,9 +329,7 @@ class GitAnalyzer:
                 file_contributors: dict[str, ContributorInfo] = {}
                 for _commit_date, name, email in commits_data:
                     if email not in file_contributors:
-                        file_contributors[email] = ContributorInfo(
-                            name=name, email=email
-                        )
+                        file_contributors[email] = ContributorInfo(name=name, email=email)
                     file_contributors[email].commit_count += 1
 
                 file_info.contributors = sorted(
@@ -378,10 +367,12 @@ class GitAnalyzer:
 
             # Get file commits
             try:
-                commits = list(self._repo.iter_commits(
-                    paths=str(rel_path),
-                    max_count=self.max_commits,
-                ))
+                commits = list(
+                    self._repo.iter_commits(
+                        paths=str(rel_path),
+                        max_count=self.max_commits,
+                    )
+                )
             except Exception:
                 info.is_tracked = False
                 return info
@@ -391,12 +382,8 @@ class GitAnalyzer:
                 return info
 
             info.commit_count = len(commits)
-            info.last_modified = datetime.fromtimestamp(
-                commits[0].committed_date, tz=UTC
-            )
-            info.first_commit = datetime.fromtimestamp(
-                commits[-1].committed_date, tz=UTC
-            )
+            info.last_modified = datetime.fromtimestamp(commits[0].committed_date, tz=UTC)
+            info.first_commit = datetime.fromtimestamp(commits[-1].committed_date, tz=UTC)
 
             # Calculate change frequency
             if info.first_commit and info.last_modified:
@@ -447,10 +434,7 @@ class GitAnalyzer:
         files = list(repo_info.files.values())
 
         if extensions:
-            files = [
-                f for f in files
-                if f.path.suffix.lower() in extensions
-            ]
+            files = [f for f in files if f.path.suffix.lower() in extensions]
 
         return sorted(
             files,
@@ -474,21 +458,15 @@ class GitAnalyzer:
             Files changed within the time period
         """
         repo_info = self.analyze_repository()
-        cutoff = datetime.now(UTC).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
         cutoff = cutoff.replace(day=max(1, cutoff.day - days))
 
         files = [
-            f for f in repo_info.files.values()
-            if f.last_modified and f.last_modified >= cutoff
+            f for f in repo_info.files.values() if f.last_modified and f.last_modified >= cutoff
         ]
 
         if extensions:
-            files = [
-                f for f in files
-                if f.path.suffix.lower() in extensions
-            ]
+            files = [f for f in files if f.path.suffix.lower() in extensions]
 
         return sorted(
             files,

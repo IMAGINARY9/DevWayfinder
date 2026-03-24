@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import time
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 
 from devwayfinder.cache.manager import CacheManager
 from devwayfinder.cache.storage import CacheEntry, CacheStorage
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # =============================================================================
 # CacheEntry Tests
@@ -254,14 +257,17 @@ class TestCacheManager:
         file_path = sample_project / "src" / "main.py"
 
         # Create cache entry
-        manager.set_analysis(file_path, {
-            "path": str(file_path),
-            "imports": [],
-            "exports": [],
-            "is_entry_point": False,
-            "language": "python",
-            "metadata": {},
-        })
+        manager.set_analysis(
+            file_path,
+            {
+                "path": str(file_path),
+                "imports": [],
+                "exports": [],
+                "is_entry_point": False,
+                "language": "python",
+                "metadata": {},
+            },
+        )
 
         # Should be fresh
         assert manager.is_analysis_fresh(file_path)
@@ -307,14 +313,17 @@ class TestCacheManager:
         """Test invalidating cache for a file."""
         file_path = sample_project / "src" / "main.py"
 
-        manager.set_analysis(file_path, {
-            "path": str(file_path),
-            "imports": [],
-            "exports": [],
-            "is_entry_point": False,
-            "language": "python",
-            "metadata": {},
-        })
+        manager.set_analysis(
+            file_path,
+            {
+                "path": str(file_path),
+                "imports": [],
+                "exports": [],
+                "is_entry_point": False,
+                "language": "python",
+                "metadata": {},
+            },
+        )
         manager.set_metrics(file_path, {"loc": 50})
 
         manager.invalidate_file(file_path)
@@ -329,14 +338,17 @@ class TestCacheManager:
         manager.get_analysis(file_path)
 
         # Set and hit
-        manager.set_analysis(file_path, {
-            "path": str(file_path),
-            "imports": [],
-            "exports": [],
-            "is_entry_point": False,
-            "language": "python",
-            "metadata": {},
-        })
+        manager.set_analysis(
+            file_path,
+            {
+                "path": str(file_path),
+                "imports": [],
+                "exports": [],
+                "is_entry_point": False,
+                "language": "python",
+                "metadata": {},
+            },
+        )
         manager.get_analysis(file_path)
 
         rates = manager.hit_rate
@@ -346,14 +358,17 @@ class TestCacheManager:
         """Test getting combined statistics."""
         file_path = sample_project / "src" / "main.py"
 
-        manager.set_analysis(file_path, {
-            "path": str(file_path),
-            "imports": [],
-            "exports": [],
-            "is_entry_point": False,
-            "language": "python",
-            "metadata": {},
-        })
+        manager.set_analysis(
+            file_path,
+            {
+                "path": str(file_path),
+                "imports": [],
+                "exports": [],
+                "is_entry_point": False,
+                "language": "python",
+                "metadata": {},
+            },
+        )
 
         stats = manager.get_stats()
         assert "total_entries" in stats
@@ -438,14 +453,17 @@ def helper() -> str:
 
         # First manager - cache data
         manager1 = CacheManager(project_with_code)
-        manager1.set_analysis(main_py, {
-            "path": str(main_py),
-            "imports": ["os"],
-            "exports": [],
-            "is_entry_point": False,
-            "language": "python",
-            "metadata": {},
-        })
+        manager1.set_analysis(
+            main_py,
+            {
+                "path": str(main_py),
+                "imports": ["os"],
+                "exports": [],
+                "is_entry_point": False,
+                "language": "python",
+                "metadata": {},
+            },
+        )
 
         # Second manager - should find cached data
         manager2 = CacheManager(project_with_code)
@@ -453,9 +471,7 @@ def helper() -> str:
         assert cached is not None
         assert cached["imports"] == ["os"]
 
-    def test_summary_cache_invalidation_on_content_change(
-        self, project_with_code: Path
-    ) -> None:
+    def test_summary_cache_invalidation_on_content_change(self, project_with_code: Path) -> None:
         """Test that summary cache invalidates when file changes."""
         manager = CacheManager(project_with_code)
         main_py = project_with_code / "main.py"

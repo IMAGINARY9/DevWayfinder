@@ -48,8 +48,7 @@ class TestEndToEndAnalysis:
 
         # __init__.py with main could be an entry point
         modules_with_main = [
-            m for m in project.modules.values()
-            if any("main" in exp.lower() for exp in m.exports)
+            m for m in project.modules.values() if any("main" in exp.lower() for exp in m.exports)
         ]
         assert len(modules_with_main) > 0
 

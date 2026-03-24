@@ -2,7 +2,7 @@
 
 > **Version:** 1.0.0  
 > **Status:** Active  
-> **Last Updated:** 2026-03-08  
+> **Last Updated:** 2026-03-24  
 > **Authoritative Source:** This document is the single source of truth for development practices and code quality standards.
 
 ---
@@ -36,8 +36,6 @@ Duplication creates drift. Instead of repeating information, **reference the can
 | Configuration options, templates | [CONFIGURATION.md](CONFIGURATION.md) | ❌ Code comments, README |
 | Development rules, coding standards | **CONTRIBUTING.md** (this file) | ❌ README, Wiki |
 | Local LLM setup, model providers | [USAGE.md](USAGE.md) | ❌ README, config files |
-| API specifications, protocols | [API.md](API.md) | ❌ Code comments |
-| VS Code extension specifics | [EXTENSION.md](EXTENSION.md) | ❌ README |
 
 ### Documentation Update Rules
 

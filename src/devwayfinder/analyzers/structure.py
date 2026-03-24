@@ -315,11 +315,7 @@ class StructureAnalyzer:
             if fnmatch.fnmatch(rel_str, pattern):
                 return True
             # Handle directory patterns ending with /
-            if (
-                pattern.endswith("/")
-                and path.is_dir()
-                and fnmatch.fnmatch(name + "/", pattern)
-            ):
+            if pattern.endswith("/") and path.is_dir() and fnmatch.fnmatch(name + "/", pattern):
                 return True
 
         return False
@@ -358,9 +354,7 @@ class StructureAnalyzer:
 
         # Check for documentation files
         for pattern in DOC_PATTERNS:
-            if fnmatch.fnmatch(name, pattern) or fnmatch.fnmatch(
-                name.lower(), pattern.lower()
-            ):
+            if fnmatch.fnmatch(name, pattern) or fnmatch.fnmatch(name.lower(), pattern.lower()):
                 info.documentation_files.append(path)
                 break
 
@@ -379,15 +373,11 @@ class StructureAnalyzer:
         name_lower = name.lower()
 
         # Check exact matches first
-        if name in ENTRY_POINT_PATTERNS or name_lower in [
-            p.lower() for p in ENTRY_POINT_PATTERNS
-        ]:
+        if name in ENTRY_POINT_PATTERNS or name_lower in [p.lower() for p in ENTRY_POINT_PATTERNS]:
             return True
 
         # Check pattern matches
-        return any(
-            fnmatch.fnmatch(name_lower, p.lower()) for p in ENTRY_POINT_PATTERNS
-        )
+        return any(fnmatch.fnmatch(name_lower, p.lower()) for p in ENTRY_POINT_PATTERNS)
 
     def _detect_build_system(self, config_files: list[Path]) -> str | None:
         """Detect build system from config files."""
@@ -452,9 +442,7 @@ class StructureAnalyzer:
             readme_path = root_path / pattern
             if readme_path.is_file():
                 try:
-                    info.readme_content = readme_path.read_text(
-                        encoding="utf-8", errors="replace"
-                    )
+                    info.readme_content = readme_path.read_text(encoding="utf-8", errors="replace")
                     break
                 except OSError:
                     pass

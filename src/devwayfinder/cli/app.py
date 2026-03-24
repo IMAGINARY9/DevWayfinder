@@ -125,11 +125,13 @@ async def _generate_async(
         console.print(f"[red]Error:[/red] Path is not a directory: {project_path}")
         raise typer.Exit(code=1)
 
-    console.print(Panel.fit(
-        f"[bold blue]DevWayfinder[/bold blue]\n"
-        f"Generating onboarding guide for: [cyan]{project_path.name}[/cyan]",
-        border_style="blue",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold blue]DevWayfinder[/bold blue]\n"
+            f"Generating onboarding guide for: [cyan]{project_path.name}[/cyan]",
+            border_style="blue",
+        )
+    )
 
     # Build LLM provider if needed
     providers = []
@@ -195,7 +197,9 @@ async def _generate_async(
 
         # Show summary
         console.print("\n" + "─" * 60)
-        console.print(f"[green]✓[/green] Generated guide with {len(result.guide.sections)} sections")
+        console.print(
+            f"[green]✓[/green] Generated guide with {len(result.guide.sections)} sections"
+        )
         console.print(f"[green]✓[/green] Analyzed {result.modules_analyzed} modules")
         console.print(f"[green]✓[/green] Generation time: {result.total_time_seconds:.2f}s")
 
@@ -250,11 +254,12 @@ async def _analyze_async(*, path: str, output_json: bool, verbose: bool) -> None
         console.print(f"[red]Error:[/red] Path is not a directory: {project_path}")
         raise typer.Exit(code=1)
 
-    console.print(Panel.fit(
-        f"[bold blue]DevWayfinder[/bold blue]\n"
-        f"Analyzing: [cyan]{project_path.name}[/cyan]",
-        border_style="blue",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold blue]DevWayfinder[/bold blue]\nAnalyzing: [cyan]{project_path.name}[/cyan]",
+            border_style="blue",
+        )
+    )
 
     try:
         with Progress(
@@ -276,6 +281,7 @@ async def _analyze_async(*, path: str, output_json: bool, verbose: bool) -> None
 
         if output_json:
             import json
+
             result = {
                 "project_name": project.name,
                 "primary_language": structure.primary_language,
@@ -341,7 +347,9 @@ async def _analyze_async(*, path: str, output_json: bool, verbose: bool) -> None
                 for module in core_modules[:10]:
                     deps = len(graph.get_dependencies(module.path))
                     dependents = len(graph.get_dependents(module.path))
-                    console.print(f"  [cyan]{module.path.name}[/cyan]: {deps} deps, {dependents} dependents")
+                    console.print(
+                        f"  [cyan]{module.path.name}[/cyan]: {deps} deps, {dependents} dependents"
+                    )
 
         console.print("\n[green]✓[/green] Analysis complete!")
 

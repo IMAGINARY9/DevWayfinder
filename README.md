@@ -4,7 +4,7 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Status: MVP 1 Complete](https://img.shields.io/badge/Status-MVP%201%20Complete-green.svg)]()
+[![Status: MVP 2 Complete](https://img.shields.io/badge/Status-MVP%202%20Complete-green.svg)]()
 
 ---
 
@@ -202,13 +202,23 @@ ruff format --check src tests
 
 | MVP | Focus | Status |
 |-----|-------|--------|
-| **MVP 1** | Core CLI & Python Analysis | 🔄 In Progress |
-| **MVP 2** | Metrics, Git, TypeScript, Caching | 🔲 Planned |
+| **MVP 1** | Core CLI & Python Analysis | ✅ Complete |
+| **MVP 2** | Metrics, Git, TypeScript, Caching | ✅ Complete |
 | **MVP 3** | VS Code Extension & Plugin System | 🔲 Planned |
 | **MVP 4** | Interactive Features & Polish | 🔲 Planned |
 | **MVP 5** | Distribution & Production | 🔲 Planned |
 
 See [IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) for detailed breakdown.
+
+## Positioning Snapshot (March 2026)
+
+Based on an external comparative review of DevWayfinder and Architext:
+
+- DevWayfinder is best treated as a **developer-first sister project** in the same ecosystem, not a direct code fork.
+- Current strengths are **low operational overhead**, **offline-capable heuristic mode**, and **CLI-focused onboarding UX**.
+- Main near-term product risk is **execution on MVP 3-5** (VS Code extension, plugin system, distribution).
+
+Roadmap implications are tracked in [IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md), and product requirements are captured in [REQUIREMENTS.md](docs/REQUIREMENTS.md).
 
 ---
 

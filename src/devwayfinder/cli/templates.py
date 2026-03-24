@@ -281,10 +281,7 @@ class ConfigTemplate:
 
     def matches_project(self, project_path: Path) -> bool:
         """Check if this template matches the project."""
-        return any(
-            (project_path / indicator).exists()
-            for indicator in self.file_indicators
-        )
+        return any((project_path / indicator).exists() for indicator in self.file_indicators)
 
 
 # Available templates

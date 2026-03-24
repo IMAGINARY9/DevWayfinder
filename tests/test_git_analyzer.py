@@ -320,11 +320,15 @@ class TestGitIntegration:
         subprocess.run(["git", "init"], cwd=repo_path, capture_output=True, check=True)
         subprocess.run(
             ["git", "config", "user.email", "dev@example.com"],
-            cwd=repo_path, capture_output=True, check=True,
+            cwd=repo_path,
+            capture_output=True,
+            check=True,
         )
         subprocess.run(
             ["git", "config", "user.name", "Developer"],
-            cwd=repo_path, capture_output=True, check=True,
+            cwd=repo_path,
+            capture_output=True,
+            check=True,
         )
 
         # Create multiple files
@@ -339,7 +343,9 @@ class TestGitIntegration:
         subprocess.run(["git", "add", "."], cwd=repo_path, capture_output=True, check=True)
         subprocess.run(
             ["git", "commit", "-m", "Initial commit"],
-            cwd=repo_path, capture_output=True, check=True,
+            cwd=repo_path,
+            capture_output=True,
+            check=True,
         )
 
         # Make changes to main.py multiple times
@@ -348,7 +354,9 @@ class TestGitIntegration:
             subprocess.run(["git", "add", "."], cwd=repo_path, capture_output=True, check=True)
             subprocess.run(
                 ["git", "commit", "-m", f"Update main.py v{i}"],
-                cwd=repo_path, capture_output=True, check=True,
+                cwd=repo_path,
+                capture_output=True,
+                check=True,
             )
 
         return repo_path

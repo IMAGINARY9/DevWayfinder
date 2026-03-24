@@ -1,5 +1,7 @@
 """Tests for Start Here recommendation algorithm."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import pytest
@@ -15,7 +17,6 @@ from devwayfinder.analyzers.start_here import (
 )
 from devwayfinder.core.graph import DependencyGraph
 from devwayfinder.core.models import Module, ModuleType
-
 
 # =============================================================================
 # FIXTURES
@@ -106,7 +107,7 @@ class TestScoreEntryPoint:
 
     def test_non_entry_point(self, sample_module: Module) -> None:
         """Test non-entry point scoring."""
-        score, reasons = score_entry_point(sample_module)
+        score, _reasons = score_entry_point(sample_module)
         assert score == 0.0
 
     def test_cli_in_path(self) -> None:
@@ -117,7 +118,7 @@ class TestScoreEntryPoint:
             module_type=ModuleType.FILE,
             entry_point=False,
         )
-        score, reasons = score_entry_point(module)
+        score, _reasons = score_entry_point(module)
         assert score > 0
 
 
@@ -160,7 +161,7 @@ class TestScoreConnectivity:
         graph = DependencyGraph()
         graph.add_module(isolated)
 
-        score, reasons = score_connectivity(isolated, graph)
+        score, _reasons = score_connectivity(isolated, graph)
         assert score == 0.0
 
 
@@ -176,7 +177,7 @@ class TestScoreDocumentation:
             description="Utility functions for the project",
             exports=["helper1", "helper2", "helper3"],
         )
-        score, reasons = score_documentation(module)
+        score, _reasons = score_documentation(module)
         assert score > 0.5
 
     def test_undocumented_module(self) -> None:
@@ -186,7 +187,7 @@ class TestScoreDocumentation:
             path=Path("/project/utils.py"),
             module_type=ModuleType.FILE,
         )
-        score, reasons = score_documentation(module)
+        score, _reasons = score_documentation(module)
         assert score < 0.3
 
 

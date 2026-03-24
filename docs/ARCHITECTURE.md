@@ -69,65 +69,54 @@ DevWayfinder follows a modular, layered architecture designed for extensibility,
 
 ```
 src/devwayfinder/
-├── __init__.py              # Public API exports
-├── __main__.py              # CLI entry point
-├── core/                    # Domain models and interfaces
+├── __init__.py
+├── __main__.py
+├── analyzers/
 │   ├── __init__.py
-│   ├── models.py            # Module, Project, DependencyEdge
-│   ├── graph.py             # DependencyGraph
-│   ├── guide.py             # OnboardingGuide, Section, Content
-│   ├── protocols.py         # Abstract interfaces
-│   └── exceptions.py        # Custom exception hierarchy
-├── analyzers/               # Code analysis components
+│   ├── base.py
+│   ├── git_analyzer.py
+│   ├── graph_builder.py
+│   ├── metrics.py
+│   ├── python_analyzer.py
+│   ├── regex_extractor.py
+│   ├── start_here.py
+│   └── structure.py
+├── cache/
 │   ├── __init__.py
-│   ├── base.py              # BaseAnalyzer abstract class
-│   ├── structure.py         # Directory structure analyzer
-│   ├── python/              # Python-specific analyzers
-│   │   ├── __init__.py
-│   │   ├── imports.py       # Import extraction
-│   │   └── metrics.py       # Complexity metrics
-│   ├── typescript/          # TypeScript analyzers (MVP 2)
-│   │   ├── __init__.py
-│   │   └── imports.py       
-│   ├── generic.py           # Language-agnostic fallback
-│   ├── git.py               # Git history analyzer
-│   └── registry.py          # Analyzer factory/registry
-├── generators/              # Output generation
+│   ├── manager.py
+│   └── storage.py
+├── cli/
 │   ├── __init__.py
-│   ├── guide.py             # GuideGenerator orchestrator
-│   ├── markdown.py          # Markdown output
-│   ├── graph_viz.py         # Mermaid/ASCII graph generation
-│   └── templates.py         # Template loading and rendering
-├── providers/               # LLM backend adapters
+│   ├── app.py
+│   ├── progress.py
+│   └── templates.py
+├── core/
 │   ├── __init__.py
-│   ├── base.py              # BaseProvider abstract class
-│   ├── ollama.py            # Ollama local models
-│   ├── openai_compat.py     # OpenAI-compatible APIs
-│   ├── heuristic.py         # Non-LLM fallback
-│   └── factory.py           # Provider factory
-├── cli/                     # Command-line interface
+│   ├── exceptions.py
+│   ├── graph.py
+│   ├── guide.py
+│   ├── models.py
+│   └── protocols.py
+├── generators/
 │   ├── __init__.py
-│   ├── app.py               # Typer application
-│   ├── commands/            # Command implementations
-│   │   ├── __init__.py
-│   │   ├── analyze.py
-│   │   ├── generate.py
-│   │   ├── init.py
-│   │   └── test_model.py
-│   └── display.py           # Rich console output
-├── config/                  # Configuration management
+│   ├── guide_generator.py
+│   └── mermaid.py
+├── providers/
 │   ├── __init__.py
-│   ├── schema.py            # Pydantic config models
-│   └── loader.py            # Config file loading
-├── cache/                   # Caching layer
+│   ├── base.py
+│   ├── config.py
+│   ├── factory.py
+│   ├── heuristic.py
+│   ├── ollama.py
+│   ├── openai.py
+│   └── openai_compat.py
+├── summarizers/
 │   ├── __init__.py
-│   ├── store.py             # Cache storage backend
-│   └── keys.py              # Cache key generation
-└── utils/                   # Shared utilities
-    ├── __init__.py
-    ├── logging.py           # Structured logging
-    ├── paths.py             # Path manipulation
-    └── hashing.py           # Content hashing
+│   ├── context_builder.py
+│   ├── controller.py
+│   └── templates.py
+└── utils/
+    └── __init__.py
 ```
 
 ---

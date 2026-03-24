@@ -37,9 +37,7 @@ def sample_project(tmp_path: Path) -> Path:
     (src / "main.py").write_text(
         '"""Main module."""\n\nfrom src import utils\n\ndef main():\n    pass\n\nif __name__ == "__main__":\n    main()'
     )
-    (src / "utils.py").write_text(
-        '"""Utilities."""\n\nimport os\n\ndef helper():\n    pass'
-    )
+    (src / "utils.py").write_text('"""Utilities."""\n\nimport os\n\ndef helper():\n    pass')
     (tests / "test_main.py").write_text(
         '"""Tests."""\n\nfrom src import main\n\ndef test_main():\n    pass'
     )
@@ -60,30 +58,36 @@ def sample_guide() -> OnboardingGuide:
         generated_at=datetime(2025, 1, 15, 10, 30),
     )
 
-    guide.add_section(Section(
-        section_type=SectionType.OVERVIEW,
-        title="Overview",
-        content="This is a test project.",
-    ))
+    guide.add_section(
+        Section(
+            section_type=SectionType.OVERVIEW,
+            title="Overview",
+            content="This is a test project.",
+        )
+    )
 
-    guide.add_section(Section(
-        section_type=SectionType.ARCHITECTURE,
-        title="Architecture",
-        content="Simple layered architecture.",
-    ))
+    guide.add_section(
+        Section(
+            section_type=SectionType.ARCHITECTURE,
+            title="Architecture",
+            content="Simple layered architecture.",
+        )
+    )
 
-    guide.add_section(Section(
-        section_type=SectionType.MODULES,
-        title="Modules",
-        content="Module descriptions.",
-        subsections=[
-            Section(
-                section_type=SectionType.CUSTOM,
-                title="`src`",
-                content="Main source code.",
-            ),
-        ],
-    ))
+    guide.add_section(
+        Section(
+            section_type=SectionType.MODULES,
+            title="Modules",
+            content="Module descriptions.",
+            subsections=[
+                Section(
+                    section_type=SectionType.CUSTOM,
+                    title="`src`",
+                    content="Main source code.",
+                ),
+            ],
+        )
+    )
 
     return guide
 
@@ -361,11 +365,13 @@ class TestOnboardingGuide:
             project_path="/test",
         )
 
-        guide.add_section(Section(
-            section_type=SectionType.OVERVIEW,
-            title="Overview",
-            content="Content",
-        ))
+        guide.add_section(
+            Section(
+                section_type=SectionType.OVERVIEW,
+                title="Overview",
+                content="Content",
+            )
+        )
 
         assert len(guide.sections) == 1
 

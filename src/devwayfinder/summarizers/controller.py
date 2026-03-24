@@ -119,9 +119,7 @@ class SummarizationController:
         Returns:
             SummarizationResult with generated summary
         """
-        context = self.context_builder.from_module(
-            module, graph=graph, file_content=file_content
-        )
+        context = self.context_builder.from_module(module, graph=graph, file_content=file_content)
         return await self._summarize_with_fallback(
             context=context,
             template=MODULE_SUMMARY_TEMPLATE,
@@ -145,9 +143,7 @@ class SummarizationController:
         Returns:
             SummarizationResult with generated summary
         """
-        context = self.context_builder.from_python_analysis(
-            file_path, analysis, graph=graph
-        )
+        context = self.context_builder.from_python_analysis(file_path, analysis, graph=graph)
         return await self._summarize_with_fallback(
             context=context,
             template=MODULE_SUMMARY_TEMPLATE,
@@ -169,6 +165,7 @@ class SummarizationController:
         Returns:
             Dict mapping module path to SummarizationResult
         """
+
         async def _summarize_one(module: Module) -> tuple[str, SummarizationResult]:
             async with self.semaphore:
                 result = await self.summarize_module(module, graph=graph)
@@ -217,9 +214,7 @@ class SummarizationController:
         Returns:
             SummarizationResult with architecture overview
         """
-        context = self.context_builder.for_architecture(
-            project, structure, graph=graph
-        )
+        context = self.context_builder.for_architecture(project, structure, graph=graph)
         return await self._summarize_with_fallback(
             context=context,
             template=ARCHITECTURE_SUMMARY_TEMPLATE,
@@ -271,6 +266,7 @@ class SummarizationController:
         Returns:
             Dict mapping module path to SummarizationResult
         """
+
         async def _summarize_one(module: Module) -> tuple[str, SummarizationResult]:
             async with self.semaphore:
                 result = await self.summarize_entry_point(module, graph=graph)

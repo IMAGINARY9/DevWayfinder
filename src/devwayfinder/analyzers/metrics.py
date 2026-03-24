@@ -177,11 +177,11 @@ class CyclomaticComplexityVisitor(ast.NodeVisitor):
 
         self.generic_visit(node)
 
-        method_count = sum(1 for n in node.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)))
-
-        self._class_complexities.append(
-            (node.name, node.lineno, method_count)
+        method_count = sum(
+            1 for n in node.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
         )
+
+        self._class_complexities.append((node.name, node.lineno, method_count))
         self._current_class = old_class
 
     # Decision point visitors - each adds 1 to complexity
@@ -301,15 +301,15 @@ class CyclomaticComplexityVisitor(ast.NodeVisitor):
         result = []
         for name, lineno, method_count in self._class_complexities:
             # Sum complexity of methods that belong to this class
-            class_complexity = sum(
-                f.complexity for f in self.function_metrics if f.is_method
+            class_complexity = sum(f.complexity for f in self.function_metrics if f.is_method)
+            result.append(
+                ClassMetrics(
+                    name=name,
+                    lineno=lineno,
+                    method_count=method_count,
+                    complexity=max(class_complexity, 1),
+                )
             )
-            result.append(ClassMetrics(
-                name=name,
-                lineno=lineno,
-                method_count=method_count,
-                complexity=max(class_complexity, 1),
-            ))
         return result
 
 
@@ -446,7 +446,9 @@ class MetricsAnalyzer:
 
             # Handle Python docstrings
             if language == "python" and block_start and block_end:
-                docstring_marker = '"""' if '"""' in stripped else "'''" if "'''" in stripped else None
+                docstring_marker = (
+                    '"""' if '"""' in stripped else "'''" if "'''" in stripped else None
+                )
                 if docstring_marker:
                     # Count occurrences
                     count = stripped.count(docstring_marker)
@@ -466,7 +468,7 @@ class MetricsAnalyzer:
             if block_start and block_end and not in_docstring:
                 if block_start in stripped:
                     in_block_comment = True
-                    if block_end in stripped[stripped.index(block_start) + len(block_start):]:
+                    if block_end in stripped[stripped.index(block_start) + len(block_start) :]:
                         in_block_comment = False
                     loc.comments += 1
                     continue
@@ -512,12 +514,23 @@ class MetricsAnalyzer:
 
         # Decision point keywords (common across many languages)
         decision_keywords = [
-            r"\bif\b", r"\belse\b", r"\belif\b", r"\belse if\b",
-            r"\bfor\b", r"\bwhile\b", r"\bdo\b",
-            r"\bswitch\b", r"\bcase\b", r"\bmatch\b",
-            r"\bcatch\b", r"\bexcept\b",
+            r"\bif\b",
+            r"\belse\b",
+            r"\belif\b",
+            r"\belse if\b",
+            r"\bfor\b",
+            r"\bwhile\b",
+            r"\bdo\b",
+            r"\bswitch\b",
+            r"\bcase\b",
+            r"\bmatch\b",
+            r"\bcatch\b",
+            r"\bexcept\b",
             r"\b\?\b",  # ternary operator
-            r"\band\b", r"\bor\b", r"\|\|", r"&&",
+            r"\band\b",
+            r"\bor\b",
+            r"\|\|",
+            r"&&",
         ]
 
         for pattern in decision_keywords:
@@ -603,15 +616,18 @@ class MetricsAnalyzer:
             FileMetrics for each analyzed file
         """
         exclude_patterns = exclude_patterns or [
-            "__pycache__", ".git", ".venv", "venv", "node_modules",
-            "*.egg-info", "dist", "build",
+            "__pycache__",
+            ".git",
+            ".venv",
+            "venv",
+            "node_modules",
+            "*.egg-info",
+            "dist",
+            "build",
         ]
 
         def should_exclude(path: Path) -> bool:
-            return any(
-                path.match(pattern) or pattern in str(path)
-                for pattern in exclude_patterns
-            )
+            return any(path.match(pattern) or pattern in str(path) for pattern in exclude_patterns)
 
         pattern = "**/*" if recursive else "*"
 

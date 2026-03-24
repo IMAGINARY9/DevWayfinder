@@ -48,9 +48,7 @@ MODULE_SUMMARY_TEMPLATE = PromptTemplate(
         "Avoid phrases like 'This module...' - start directly with what it does."
     ),
     user_prompt_template=(
-        "Write a 2-4 sentence summary for a new developer.\n\n"
-        "Module: {module_name}\n"
-        "{context}"
+        "Write a 2-4 sentence summary for a new developer.\n\nModule: {module_name}\n{context}"
     ),
     max_tokens=200,
 )
