@@ -20,6 +20,11 @@ from devwayfinder.summarizers.templates import (
     PromptTemplate,
     SummarizationType,
 )
+from devwayfinder.utils.tokens import (
+    estimate_cost_for_context,
+    estimate_output_tokens,
+    estimate_total_tokens,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -320,12 +325,17 @@ class SummarizationController:
         for provider in self.config.providers:
             try:
                 summary = await self._call_provider_with_retry(provider, context)
+                
+                # Estimate tokens for successful provider call
+                total_tokens = estimate_total_tokens(context)
+                
                 return SummarizationResult(
                     summary=summary,
                     provider_used=provider.name,
                     summary_type=summary_type,
                     module_name=context.module_name,
                     success=True,
+                    tokens_used=total_tokens,
                 )
             except Exception as e:
                 last_error = f"{provider.name}: {e}"
@@ -335,12 +345,14 @@ class SummarizationController:
         # Fall back to heuristic if enabled
         if self.config.use_heuristic_fallback:
             summary = self._generate_heuristic_summary(context, summary_type)
+            # Heuristic uses no tokens (no LLM call)
             return SummarizationResult(
                 summary=summary,
                 provider_used="heuristic",
                 summary_type=summary_type,
                 module_name=context.module_name,
                 success=True,
+                tokens_used=0,
             )
 
         # All providers failed
@@ -351,6 +363,7 @@ class SummarizationController:
             module_name=context.module_name,
             success=False,
             error=last_error or "No providers available",
+            tokens_used=0,
         )
 
     async def _call_provider_with_retry(
