@@ -146,6 +146,8 @@ class TestGenerationResult:
         assert result.guide == sample_guide
         assert result.total_time_seconds == 4.0
         assert result.errors == []
+        assert result.total_tokens_used == 0
+        assert result.estimated_cost_usd == 0.0
 
     def test_result_with_errors(self, sample_guide: OnboardingGuide) -> None:
         """Should track errors."""
@@ -235,6 +237,19 @@ class TestGuideGenerator:
 
         assert modules is not None
         assert len(modules.subsections) > 0
+
+    @pytest.mark.asyncio
+    async def test_modules_section_has_quality_badges(self, sample_project: Path) -> None:
+        """Heuristic generation should mark module summaries with quality badges."""
+        config = GenerationConfig(use_llm=False)
+        generator = GuideGenerator(sample_project, config)
+
+        result = await generator.generate()
+        modules = result.guide.get_section(SectionType.MODULES)
+
+        assert modules is not None
+        joined = "\n".join(s.content for s in modules.subsections)
+        assert "[heuristic]" in joined
 
     @pytest.mark.asyncio
     async def test_dependencies_section_with_mermaid(self, sample_project: Path) -> None:

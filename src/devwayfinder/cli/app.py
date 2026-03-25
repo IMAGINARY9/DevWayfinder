@@ -18,6 +18,7 @@ from devwayfinder.core.exceptions import DevWayfinderError
 from devwayfinder.core.protocols import SummarizationContext
 from devwayfinder.generators import GenerationConfig, GuideGenerator
 from devwayfinder.providers import create_provider, load_provider_config, supported_providers
+from devwayfinder.utils.tokens import TokenEstimate, estimate_cost
 
 app = typer.Typer(
     name="devwayfinder",
@@ -67,16 +68,6 @@ def generate(
         "--no-llm",
         help="Use heuristic mode (no LLM)",
     ),
-    no_graph: bool = typer.Option(
-        False,
-        "--no-graph",
-        help="Exclude dependency graph from output",
-    ),
-    no_metrics: bool = typer.Option(
-        False,
-        "--no-metrics",
-        help="Exclude complexity metrics from output",
-    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -94,8 +85,6 @@ def generate(
             base_url=base_url,
             api_key=api_key,
             no_llm=no_llm,
-            no_graph=no_graph,
-            no_metrics=no_metrics,
             verbose=verbose,
         )
     )
@@ -110,8 +99,6 @@ async def _generate_async(
     base_url: str | None,
     api_key: str | None,
     no_llm: bool,
-    no_graph: bool,
-    no_metrics: bool,
     verbose: bool,
 ) -> None:
     """Run the full generation pipeline."""
@@ -155,12 +142,30 @@ async def _generate_async(
             no_llm = True
 
     try:
+        # Pre-flight estimate so users can budget expensive runs.
+        estimated_modules = await _estimate_module_count(project_path)
+        preflight = _estimate_preflight_cost(
+            module_count=estimated_modules,
+            model_name=providers[0].name if providers else "heuristic",
+            use_llm=not no_llm,
+        )
+        console.print(
+            Panel.fit(
+                f"[bold]Preflight Estimate[/bold]\n"
+                f"Modules (estimated): [cyan]{estimated_modules}[/cyan]\n"
+                f"LLM summaries (estimated): [cyan]{preflight['llm_operations']}[/cyan]\n"
+                f"Tokens (estimated): [cyan]{preflight['total_tokens']:,}[/cyan]\n"
+                f"Cost (estimated): [cyan]${preflight['estimated_cost']:.6f}[/cyan]",
+                border_style="magenta",
+            )
+        )
+
         with create_generation_tracker(console) as tracker:
             # Create generator
             gen_config = GenerationConfig(
                 use_llm=not no_llm,
                 providers=providers,
-                include_mermaid=not no_graph,
+                include_mermaid=True,
             )
             generator = GuideGenerator(
                 project_path=project_path,
@@ -202,6 +207,10 @@ async def _generate_async(
         )
         console.print(f"[green]✓[/green] Analyzed {result.modules_analyzed} modules")
         console.print(f"[green]✓[/green] Generation time: {result.total_time_seconds:.2f}s")
+        console.print(f"[green]✓[/green] LLM summaries: {result.llm_calls_made}")
+        console.print(f"[green]✓[/green] Heuristic summaries: {result.heuristic_summaries}")
+        console.print(f"[green]✓[/green] Tokens used (estimated): {result.total_tokens_used:,}")
+        console.print(f"[green]✓[/green] Cost (estimated): ${result.estimated_cost_usd:.6f}")
 
         if result.errors:
             console.print(f"\n[yellow]Errors ({len(result.errors)}):[/yellow]")
@@ -218,6 +227,42 @@ async def _generate_async(
             close_method = getattr(provider, "close", None)
             if callable(close_method):
                 await close_method()
+
+
+async def _estimate_module_count(project_path: Path) -> int:
+    """Estimate number of source modules before generation."""
+    analyzer = StructureAnalyzer()
+    info = await analyzer.analyze(project_path)
+    return len(info.source_files)
+
+
+def _estimate_preflight_cost(*, module_count: int, model_name: str, use_llm: bool) -> dict[str, int | float]:
+    """Estimate token and cost footprint before running generation."""
+    if not use_llm or module_count == 0:
+        return {
+            "llm_operations": 0,
+            "total_tokens": 0,
+            "estimated_cost": 0.0,
+        }
+
+    # Adaptive prompting lowers average output size for many utility files.
+    avg_input_tokens = 180
+    avg_output_tokens = 170
+    total_input = module_count * avg_input_tokens
+    total_output = module_count * avg_output_tokens
+    total_tokens = total_input + total_output
+
+    estimate = TokenEstimate(
+        input_tokens=total_input,
+        output_tokens=total_output,
+        total_tokens=total_tokens,
+    )
+    cost = estimate_cost(estimate, model_name=model_name)
+    return {
+        "llm_operations": module_count,
+        "total_tokens": total_tokens,
+        "estimated_cost": cost.total_cost,
+    }
 
 
 @app.command()

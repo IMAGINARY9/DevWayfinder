@@ -75,6 +75,9 @@ class GenerationResult:
     modules_analyzed: int
     modules_summarized: int
     llm_calls_made: int
+    total_tokens_used: int = 0
+    heuristic_summaries: int = 0
+    estimated_cost_usd: float = 0.0
     errors: list[str] = field(default_factory=list)
 
 
@@ -120,6 +123,8 @@ class GuideGenerator:
         self._project: Project | None = None
         self._graph: DependencyGraph | None = None
         self._llm_calls = 0
+        self._summary_providers: dict[str, str] = {}
+        self._summary_tokens: dict[str, int] = {}
 
     async def generate(
         self,
@@ -174,7 +179,7 @@ class GuideGenerator:
         # Stage 2: Summarization
         summ_start = time.perf_counter()
         summaries: dict[str, str] = {}
-        if self._project and self.config.use_llm:
+        if self._project:
             _report("summarization", "start", "Generating module descriptions")
             try:
                 summaries = await self._run_summarization(progress_callback)
@@ -184,7 +189,7 @@ class GuideGenerator:
                 logger.exception("Summarization failed")
                 _report("summarization", "failed", str(e))
         else:
-            _report("summarization", "skipped", "LLM disabled")
+            _report("summarization", "skipped", "No project modules available")
 
         summ_time = time.perf_counter() - summ_start
 
@@ -204,6 +209,9 @@ class GuideGenerator:
             modules_analyzed=modules_analyzed,
             modules_summarized=len(summaries),
             llm_calls_made=self._llm_calls,
+            total_tokens_used=sum(self._summary_tokens.values()),
+            heuristic_summaries=sum(1 for p in self._summary_providers.values() if p == "heuristic"),
+            estimated_cost_usd=self._estimate_generation_cost(),
             errors=errors,
         )
 
@@ -244,6 +252,8 @@ class GuideGenerator:
         for i, (path, result) in enumerate(results.items(), 1):
             if result.success:
                 summaries[path] = result.summary
+                self._summary_providers[path] = result.provider_used
+                self._summary_tokens[path] = result.tokens_used or 0
                 if result.provider_used != "heuristic":
                     self._llm_calls += 1
             else:
@@ -376,7 +386,14 @@ class GuideGenerator:
                     summary = summaries.get(path_str, "")
                     module_lines.append(f"**{module.name}**")
                     if summary:
-                        module_lines.append(f"> {summary}")
+                        provider_used = self._summary_providers.get(path_str, "heuristic")
+                        if provider_used == "heuristic":
+                            quality_badge = "[heuristic]"
+                        elif provider_used == "none":
+                            quality_badge = "[none]"
+                        else:
+                            quality_badge = "[LLM]"
+                        module_lines.append(f"> {quality_badge} {summary}")
                     if module.imports:
                         module_lines.append(f"*Imports:* {', '.join(module.imports[:5])}")
                     module_lines.append("")
@@ -494,6 +511,19 @@ class GuideGenerator:
         if self.config.providers:
             return self.config.providers[0].name
         return "heuristic"
+
+    def _estimate_generation_cost(self) -> float:
+        """Estimate generation cost based on tracked token usage and active model."""
+        from devwayfinder.utils.tokens import CostEstimate, TokenEstimate, estimate_cost
+
+        token_estimate = TokenEstimate(
+            input_tokens=self._summary_tokens and sum(self._summary_tokens.values()) or 0,
+            output_tokens=0,
+            total_tokens=self._summary_tokens and sum(self._summary_tokens.values()) or 0,
+        )
+        model_name = self._get_model_name()
+        cost: CostEstimate = estimate_cost(token_estimate, model_name=model_name)
+        return cost.total_cost
 
     async def close(self) -> None:
         """Clean up resources."""

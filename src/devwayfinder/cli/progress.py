@@ -44,9 +44,14 @@ class Phase:
     @property
     def status_icon(self) -> str:
         """Get icon for current status."""
+        if self.status == PhaseStatus.IN_PROGRESS:
+            # Animated spinner frame; Live refresh makes this visibly rotate.
+            frames = ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
+            idx = int(time.perf_counter() * 10) % len(frames)
+            return frames[idx]
+
         icons = {
             PhaseStatus.PENDING: "○",
-            PhaseStatus.IN_PROGRESS: "◐",
             PhaseStatus.COMPLETE: "●",
             PhaseStatus.FAILED: "✗",
             PhaseStatus.SKIPPED: "◌",

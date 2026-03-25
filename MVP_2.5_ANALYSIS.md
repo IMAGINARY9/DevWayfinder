@@ -731,11 +731,14 @@ async def test_summary_quality_matches_baseline():
     - **Tests:** 354 total (8 new adaptive tests), all passing
     - **Coverage Impact:** templates.py now at 100%, overall 78.18%
     - **Token Savings:** 20-30% expected for projects with many utilities
-5. **⏳ NOT STARTED — Improve UX with Progress Feedback**
-   - Always show spinner in heuristic mode
-   - Add quality indicators (LLM ✓ vs heuristic ⚠️) to summaries
-   - Cost estimate before expensive operations
-   - **Effort:** 4-5 hours
+5. **✅ COMPLETE — Improve UX with Progress Feedback**
+    - Added animated progress spinner across phases (including heuristic mode)
+    - Added quality indicators in summaries (`[LLM]`, `[heuristic]`, `[none]`)
+    - Added preflight token/cost estimate before generation
+    - Added post-run token/cost and LLM/heuristic summary metrics in CLI
+    - Simplified CLI options by removing `--no-graph` and `--no-metrics`
+    - Added UX-focused tests for CLI and generator output behavior
+    - **Effort:** ~4 hours
 
 ### Priority 2: SHOULD (Good to have, 1-2 days each)
 
@@ -778,10 +781,10 @@ async def test_summary_quality_matches_baseline():
 | Phase | Task | Effort | Status |
 |-------|------|--------|--------|
 
-| **Week 1 Complete** | Test coverage + Token counting + Interface segregation + Adaptive prompts | 14.5 hrs | ✅ DONE (48 + 44 + 3 managers + 8 tests) |
-| **Week 2 Starting** | UX improvements + Context optimization | 10-12 hrs | ⏳ NOT STARTED |
+| **Week 1 Complete** | Test coverage + Token counting + Interface segregation + Adaptive prompts + UX improvements | 18.5 hrs | ✅ DONE |
+| **Week 2 Starting** | Context optimization | 4-6 hrs | ⏳ NOT STARTED |
 | **Week 2.5** | Integration tests + Polish | 8-10 hrs | Not started |
-| **Total (Est.)** | | **47 hours (~1 week completion)** | **71% complete (Up from 60%)** |
+| **Total (Est.)** | | **47 hours (~1 week completion)** | **80% complete (Up from 71%)** |
 ---
 
 ## 7. MVP 3 Prerequisites Checklist
@@ -789,9 +792,9 @@ async def test_summary_quality_matches_baseline():
 After MVP 2.5:
 - [x] 80% test coverage baseline (77.93%, 2.07% gap remaining)
 - [x] Token counting implemented and integrated
-- [ ] Cost report in CLI output (infrastructure ready, CLI binding pending)
-- [ ] Adaptive prompt system in place (next task)
-- [ ] Code passes SOLID analysis (interface segregation in progress)
+- [x] Cost report in CLI output (preflight + post-run estimates)
+- [x] Adaptive prompt system in place
+- [x] Code passes SOLID analysis (controller responsibilities segmented)
 - [ ] Integration tests for LLM providers
 - [ ] Summary quality metrics defined
 - [ ] Real-world project tested (Django/Flask/Express)

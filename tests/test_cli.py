@@ -100,6 +100,8 @@ class TestGenerateCommand:
         result = runner.invoke(app, ["generate", str(tmp_path), "--no-llm"])
         assert result.exit_code == 0
         assert "Generation complete" in result.output or "Generated guide" in result.output
+        assert "Preflight Estimate" in result.output
+        assert "Cost (estimated)" in result.output
 
     def test_generate_to_file(self, tmp_path: Path) -> None:
         """Test generate command writes output to file."""
