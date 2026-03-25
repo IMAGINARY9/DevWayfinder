@@ -2,20 +2,18 @@
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from devwayfinder.core.protocols import SummarizationContext
 from devwayfinder.utils.tokens import (
     MODEL_PRICING,
-    TokenEstimate,
-    CostEstimate,
     BatchCostSummary,
-    estimate_tokens_for_text,
+    CostEstimate,
+    TokenEstimate,
     estimate_context_tokens,
-    estimate_output_tokens,
-    estimate_total_tokens,
     estimate_cost,
     estimate_cost_for_context,
+    estimate_output_tokens,
+    estimate_tokens_for_text,
+    estimate_total_tokens,
 )
 
 
@@ -36,7 +34,9 @@ class TestTokenEstimate:
 
     def test_large_token_counts(self):
         """Test TokenEstimate with large token counts."""
-        token_est = TokenEstimate(input_tokens=1_000_000, output_tokens=500_000, total_tokens=1_500_000)
+        token_est = TokenEstimate(
+            input_tokens=1_000_000, output_tokens=500_000, total_tokens=1_500_000
+        )
         assert token_est.total_tokens == 1_500_000
 
     def test_to_dict(self):
@@ -265,7 +265,7 @@ class TestCostEstimationFunctions:
         """Test basic cost estimation."""
         tokens = TokenEstimate(input_tokens=1000, output_tokens=500, total_tokens=1500)
         cost = estimate_cost(tokens, model_name="gpt-4o-mini")
-        
+
         assert isinstance(cost, CostEstimate)
         assert cost.input_cost > 0
         assert cost.output_cost > 0
@@ -275,7 +275,7 @@ class TestCostEstimationFunctions:
         """Test cost estimation with zero tokens."""
         tokens = TokenEstimate(input_tokens=0, output_tokens=0, total_tokens=0)
         cost = estimate_cost(tokens, model_name="gpt-4o-mini")
-        
+
         assert cost.input_cost == 0.0
         assert cost.output_cost == 0.0
         assert cost.total_cost == 0.0
@@ -283,18 +283,18 @@ class TestCostEstimationFunctions:
     def test_estimate_cost_different_models(self):
         """Test cost estimation with different models."""
         tokens = TokenEstimate(input_tokens=1000, output_tokens=500, total_tokens=1500)
-        
+
         # GPT-4o should be more expensive than GPT-4o-mini
         cost_4o = estimate_cost(tokens, model_name="gpt-4o")
         cost_mini = estimate_cost(tokens, model_name="gpt-4o-mini")
-        
+
         assert cost_4o.total_cost > cost_mini.total_cost
 
     def test_estimate_cost_local_model(self):
         """Test cost estimation for local models (zero cost)."""
         tokens = TokenEstimate(input_tokens=1000, output_tokens=500, total_tokens=1500)
         cost = estimate_cost(tokens, model_name="mistral:7b")
-        
+
         # Local models should have zero cost
         assert cost.total_cost == 0.0
 
@@ -333,7 +333,7 @@ class TestCostEstimationFunctions:
         """Test cost estimation with default model."""
         tokens = TokenEstimate(input_tokens=1000, output_tokens=500, total_tokens=1500)
         cost = estimate_cost(tokens)  # No model specified
-        
+
         # Should use default (gpt-4o-mini)
         cost_mini = estimate_cost(tokens, model_name="gpt-4o-mini")
         assert cost.total_cost == cost_mini.total_cost
@@ -342,7 +342,7 @@ class TestCostEstimationFunctions:
         """Test cost estimation with unknown model."""
         tokens = TokenEstimate(input_tokens=1000, output_tokens=500, total_tokens=1500)
         cost = estimate_cost(tokens, model_name="unknown-model-xyz")
-        
+
         # Unknown models default to free
         assert cost.total_cost == 0.0
 
@@ -353,13 +353,13 @@ class TestModelPricing:
     def test_all_models_have_pricing(self):
         """Test that all models have valid pricing."""
         assert len(MODEL_PRICING) > 0
-        
+
         for model_name, pricing in MODEL_PRICING.items():
             assert isinstance(model_name, str)
             assert "input_cost_per_1m" in pricing
             assert "output_cost_per_1m" in pricing
             assert "context_window" in pricing
-            
+
             # Prices should be non-negative
             assert pricing["input_cost_per_1m"] >= 0
             assert pricing["output_cost_per_1m"] >= 0
@@ -369,7 +369,7 @@ class TestModelPricing:
         """Test GPT-4o pricing exists."""
         assert "gpt-4o" in MODEL_PRICING
         pricing = MODEL_PRICING["gpt-4o"]
-        
+
         assert pricing["input_cost_per_1m"] > 0  # Paid model
         assert pricing["output_cost_per_1m"] > 0
         assert pricing["context_window"] >= 4096
@@ -378,14 +378,14 @@ class TestModelPricing:
         """Test GPT-4o-mini pricing exists."""
         assert "gpt-4o-mini" in MODEL_PRICING
         pricing = MODEL_PRICING["gpt-4o-mini"]
-        
+
         assert pricing["input_cost_per_1m"] > 0
         assert pricing["output_cost_per_1m"] > 0
 
     def test_local_model_pricing(self):
         """Test local model pricing (should be free)."""
         local_models = ["mistral:7b", "llama2", "neural-chat"]
-        
+
         for model in local_models:
             if model in MODEL_PRICING:
                 pricing = MODEL_PRICING[model]
@@ -480,7 +480,7 @@ class TestIntegration:
 
         # Full pipeline
         cost = estimate_cost_for_context(context, model_name="gpt-4o-mini")
-        
+
         assert isinstance(cost, CostEstimate)
         assert cost.total_cost >= 0
         assert cost.input_cost >= 0
@@ -512,4 +512,3 @@ class TestIntegration:
         assert summary.operations_count == 5
         assert summary.total_tokens == 7500
         assert summary.llm_operations == 4
-

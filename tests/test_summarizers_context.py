@@ -262,15 +262,6 @@ class TestSummarizationContextBuilder:
             )
             modules[f"module_{i}"] = module
 
-        from devwayfinder.core.models import Project
-
-        project = Project(
-            root_path=tmp_path,
-            name="test_project",
-            modules=modules,
-            language="python",
-        )
-
         builder = ContextBuilder(tmp_path)
 
         # Build contexts for all modules
@@ -357,7 +348,9 @@ class TestSummarizationContextBuilder:
         )
 
         classes = [ClassInfo(name="MyClass", lineno=1, bases=[], methods=[], docstring="")]
-        functions = [FunctionInfo(name="my_function", lineno=5, parameters=[], docstring="", is_async=False)]
+        functions = [
+            FunctionInfo(name="my_function", lineno=5, parameters=[], docstring="", is_async=False)
+        ]
 
         ast_analysis = PythonExtractionResult(
             imports=imports,

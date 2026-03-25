@@ -9,11 +9,13 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from devwayfinder.core.exceptions import ProviderError
-
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from devwayfinder.core.protocols import ModelProvider, SummarizationContext
     from devwayfinder.summarizers.retry import RetryManager
+
+    ProviderCall = Callable[[ModelProvider, SummarizationContext], Awaitable[str]]
 
 
 logger = logging.getLogger(__name__)
@@ -21,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 class ProviderChain:
     """Orchestrates provider selection and fallback chain.
-    
+
     Handles:
     - Provider chain configuration and ordering
     - Fallback logic when providers fail
@@ -47,7 +49,7 @@ class ProviderChain:
 
     async def call_provider_chain(
         self,
-        provider_call,
+        provider_call: ProviderCall | None,
         context: SummarizationContext,
     ) -> tuple[str, str | None]:
         """Call providers in order with fallback.
@@ -64,6 +66,11 @@ class ProviderChain:
         # Try each configured provider in order
         for provider in self.providers:
             try:
+                if provider_call is not None:
+                    summary = await provider_call(provider, context)
+                    logger.info("Provider %s succeeded", provider.name)
+                    return provider.name, summary
+
                 if self.retry_manager:
                     summary = await self.retry_manager.call_with_retry(provider, context)
                 else:

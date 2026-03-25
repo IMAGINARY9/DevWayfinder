@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import httpx
 import pytest
 
 from devwayfinder.core.exceptions import (
-    AnalysisError,
-    ConfigurationError,
     ConnectionError,
     DevWayfinderError,
     FileAccessError,
@@ -20,15 +17,11 @@ from devwayfinder.core.exceptions import (
     RateLimitError,
     UnsupportedLanguageError,
 )
-from devwayfinder.core.models import Module, ModuleType, Project
+from devwayfinder.core.models import Module, ModuleType
 from devwayfinder.core.protocols import SummarizationContext
 from devwayfinder.providers import ProviderConfig
 from devwayfinder.providers.ollama import OllamaProvider
 from devwayfinder.providers.openai_compat import OpenAICompatProvider
-
-if TYPE_CHECKING:
-    pass
-
 
 # ============================================================================
 # ENTRY POINT TESTS
@@ -49,7 +42,7 @@ class TestExceptionHierarchy:
         """DevWayfinderError should be raisable."""
         with pytest.raises(DevWayfinderError) as exc_info:
             raise DevWayfinderError("Test error", {"key": "value"})
-        
+
         assert str(exc_info.value) == "Test error"
         assert exc_info.value.details == {"key": "value"}
 
@@ -103,11 +96,7 @@ class TestExceptionHierarchy:
 
     def test_connection_error(self) -> None:
         """ConnectionError should include provider and URL."""
-        error = ConnectionError(
-            "ollama",
-            "http://localhost:11434",
-            "Connection refused"
-        )
+        error = ConnectionError("ollama", "http://localhost:11434", "Connection refused")
         assert "ollama" in str(error)
         assert "http://localhost:11434" in str(error)
 
@@ -136,29 +125,20 @@ class TestOpenAICompatProviderComplete:
         """Test summarization endpoint call."""
         respx_mock.post("http://127.0.0.1:5000/v1/chat/completions").mock(
             return_value=httpx.Response(
-                200,
-                json={
-                    "choices": [
-                        {
-                            "message": {
-                                "content": "This is a useful module."
-                            }
-                        }
-                    ]
-                }
+                200, json={"choices": [{"message": {"content": "This is a useful module."}}]}
             )
         )
-        
+
         provider = OpenAICompatProvider(
             ProviderConfig(provider="openai_compat", base_url="http://127.0.0.1:5000/v1")
         )
-        
+
         context = SummarizationContext(
             module_name="utils",
             imports=["sys", "os"],
             exports=["helper"],
         )
-        
+
         summary = await provider.summarize(context)
         assert summary == "This is a useful module."
         await provider.close()
@@ -169,29 +149,29 @@ class TestOpenAICompatProviderComplete:
         respx_mock.post("http://127.0.0.1:5000/v1/chat/completions").mock(
             return_value=httpx.Response(429)
         )
-        
+
         provider = OpenAICompatProvider(
             ProviderConfig(provider="openai_compat", base_url="http://127.0.0.1:5000/v1")
         )
-        
+
         context = SummarizationContext(module_name="utils")
-        
-        with pytest.raises(Exception):  # Should raise RateLimitError
+
+        with pytest.raises(RateLimitError):
             await provider.summarize(context)
-        
+
         await provider.close()
 
     @pytest.mark.asyncio
-    async def test_openai_compat_with_api_key(self, respx_mock: object) -> None:
+    async def test_openai_compat_with_api_key(self) -> None:
         """Test that API key is included in headers."""
         provider = OpenAICompatProvider(
             ProviderConfig(
                 provider="openai_compat",
                 base_url="http://127.0.0.1:5000/v1",
-                api_key="test-key-123"
+                api_key="test-key-123",
             )
         )
-        
+
         # Check headers were built correctly
         headers = provider._headers()
         assert headers.get("Authorization") == "Bearer test-key-123"
@@ -205,21 +185,16 @@ class TestOllamaProviderComplete:
     async def test_ollama_summarize(self, respx_mock: object) -> None:
         """Test Ollama summarization."""
         respx_mock.post("http://localhost:11434/api/generate").mock(
-            return_value=httpx.Response(
-                200,
-                json={"response": "Ollama output"}
-            )
+            return_value=httpx.Response(200, json={"response": "Ollama output"})
         )
-        
-        provider = OllamaProvider(
-            ProviderConfig(provider="ollama", model_name="mistral:7b")
-        )
-        
+
+        provider = OllamaProvider(ProviderConfig(provider="ollama", model_name="mistral:7b"))
+
         context = SummarizationContext(
             module_name="test",
             imports=["requests"],
         )
-        
+
         summary = await provider.summarize(context)
         assert summary == "Ollama output"
         await provider.close()
@@ -227,13 +202,11 @@ class TestOllamaProviderComplete:
     @pytest.mark.asyncio
     async def test_ollama_unavailable(self) -> None:
         """Test behavior when Ollama is unavailable."""
-        provider = OllamaProvider(
-            ProviderConfig(provider="ollama", model_name="mistral:7b")
-        )
-        
+        provider = OllamaProvider(ProviderConfig(provider="ollama", model_name="mistral:7b"))
+
         # Ollama not running - should raise connection error
         context = SummarizationContext(module_name="test")
-        
+
         # This will fail to connect - expected behavior
         try:
             await provider.summarize(context)
@@ -257,18 +230,18 @@ class TestGraphBuilderEdgeCases:
     async def test_circular_dependency_detection(self, tmp_path: Path) -> None:
         """Test detection of circular dependencies."""
         from devwayfinder.analyzers import GraphBuilder
-        
+
         # Create files with circular imports
         src = tmp_path / "src"
         src.mkdir()
-        
+
         (src / "a.py").write_text("from src.b import B")
         (src / "b.py").write_text("from src.a import A")
         (src / "__init__.py").write_text("")
-        
+
         builder = GraphBuilder()
         project, graph = await builder.build(tmp_path)
-        
+
         # Graph should be built even with cycles
         assert project is not None
         assert graph is not None
@@ -277,18 +250,16 @@ class TestGraphBuilderEdgeCases:
     async def test_graph_with_external_imports(self, tmp_path: Path) -> None:
         """Test graph building with external (non-local) imports."""
         from devwayfinder.analyzers import GraphBuilder
-        
+
         src = tmp_path / "src"
         src.mkdir()
-        
-        (src / "features.py").write_text(
-            "import requests\nimport numpy\nfrom pathlib import Path"
-        )
+
+        (src / "features.py").write_text("import requests\nimport numpy\nfrom pathlib import Path")
         (src / "__init__.py").write_text("")
-        
+
         builder = GraphBuilder()
-        project, graph = await builder.build(tmp_path)
-        
+        project, _graph = await builder.build(tmp_path)
+
         # External imports shouldn't cause errors
         assert len(project.modules) > 0
 
@@ -305,14 +276,14 @@ class TestPythonAnalyzerEdgeCases:
     async def test_analyze_syntax_error_fallback(self, tmp_path: Path) -> None:
         """Test fallback to regex when AST parsing fails."""
         from devwayfinder.analyzers import PythonASTAnalyzer
-        
+
         # Create file with syntax error
         bad_file = tmp_path / "bad.py"
         bad_file.write_text("def broken(:\n    pass")
-        
+
         analyzer = PythonASTAnalyzer()
         result = await analyzer.analyze(bad_file)
-        
+
         # Should return some result (fallback to regex)
         assert result.path == bad_file
 
@@ -320,7 +291,7 @@ class TestPythonAnalyzerEdgeCases:
     async def test_analyze_async_functions(self, tmp_path: Path) -> None:
         """Test extraction of async functions."""
         from devwayfinder.analyzers import PythonASTAnalyzer
-        
+
         code = """
 import asyncio
 
@@ -334,10 +305,10 @@ async def process():
 """
         py_file = tmp_path / "async.py"
         py_file.write_text(code)
-        
+
         analyzer = PythonASTAnalyzer()
         result = await analyzer.analyze(py_file)
-        
+
         # Functions are stored in metadata
         functions = result.metadata.get("functions", [])
         assert "fetch_data" in functions
@@ -347,7 +318,7 @@ async def process():
     async def test_analyze_decorated_functions(self, tmp_path: Path) -> None:
         """Test extraction of decorated functions."""
         from devwayfinder.analyzers import PythonASTAnalyzer
-        
+
         code = """
 def decorator(f):
     return f
@@ -364,10 +335,10 @@ def multi_decorated():
 """
         py_file = tmp_path / "decorated.py"
         py_file.write_text(code)
-        
+
         analyzer = PythonASTAnalyzer()
         result = await analyzer.analyze(py_file)
-        
+
         function_names = result.metadata.get("functions", [])
         assert "special_function" in function_names
         assert "multi_decorated" in function_names
@@ -376,24 +347,24 @@ def multi_decorated():
     async def test_analyze_nested_classes(self, tmp_path: Path) -> None:
         """Test extraction of nested classes."""
         from devwayfinder.analyzers import PythonASTAnalyzer
-        
+
         code = """
 class Outer:
     '''Outer class.'''
-    
+
     class Inner:
         '''Nested inner class.'''
         pass
-        
+
     def method(self):
         pass
 """
         py_file = tmp_path / "nested.py"
         py_file.write_text(code)
-        
+
         analyzer = PythonASTAnalyzer()
         result = await analyzer.analyze(py_file)
-        
+
         class_names = result.metadata.get("classes", [])
         assert "Outer" in class_names
 
@@ -411,7 +382,7 @@ class TestStartHereAlgorithm:
         """Test that entry points are recommended as start."""
         from devwayfinder.analyzers.start_here import get_start_here_recommendations
         from devwayfinder.core.graph import DependencyGraph
-        
+
         # Create modules
         main_module = Module(
             name="main",
@@ -421,7 +392,7 @@ class TestStartHereAlgorithm:
             entry_point=True,
             change_frequency=10.0,
         )
-        
+
         util_module = Module(
             name="utils",
             path=Path("utils.py"),
@@ -430,19 +401,19 @@ class TestStartHereAlgorithm:
             entry_point=False,
             change_frequency=1.0,
         )
-        
+
         # Create a graph
         graph = DependencyGraph()
         graph.add_module(main_module)
         graph.add_module(util_module)
-        
+
         # Get recommendations
         recommendations = get_start_here_recommendations(
             modules=[main_module, util_module],
             graph=graph,
             max_recommendations=5,
         )
-        
+
         # Should have recommendations
         assert len(recommendations) >= 0
         if recommendations:

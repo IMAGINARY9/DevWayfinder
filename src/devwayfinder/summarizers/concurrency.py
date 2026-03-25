@@ -8,7 +8,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Callable, TypeVar
+from typing import TYPE_CHECKING, TypeVar
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +20,7 @@ T = TypeVar("T")
 
 class ConcurrencyPool:
     """Manages concurrent task execution with semaphore limits.
-    
+
     Handles:
     - Semaphore-based concurrency control
     - Task batching
@@ -41,8 +44,7 @@ class ConcurrencyPool:
         return self._semaphore
 
     async def run_concurrent(
-        self,
-        tasks: list[tuple[str, Callable]],
+        self, tasks: tuple[tuple[str, Callable[[], Awaitable[T]]], ...]
     ) -> dict[str, T | Exception]:
         """Run tasks concurrently with semaphore control.
 
@@ -53,7 +55,10 @@ class ConcurrencyPool:
             Dict mapping keys to results or exceptions
         """
 
-        async def _run_with_semaphore(key: str, coro_fn: Callable) -> tuple[str, T | Exception]:
+        async def _run_with_semaphore(
+            key: str,
+            coro_fn: Callable[[], Awaitable[T]],
+        ) -> tuple[str, T | Exception]:
             async with self.semaphore:
                 try:
                     result = await coro_fn()
@@ -76,7 +81,7 @@ class ConcurrencyPool:
 
     async def run_batch(
         self,
-        batch_coros: list,
+        batch_coros: list[Awaitable[T]],
     ) -> list[T | Exception]:
         """Run a batch of coroutines with semaphore control.
 
@@ -87,7 +92,7 @@ class ConcurrencyPool:
             List of results (may contain exceptions)
         """
 
-        async def _with_semaphore(coro):
+        async def _with_semaphore(coro: Awaitable[T]) -> T | Exception:
             async with self.semaphore:
                 try:
                     return await coro
@@ -95,7 +100,8 @@ class ConcurrencyPool:
                     return e
 
         semaphore_coros = [_with_semaphore(coro) for coro in batch_coros]
-        return await asyncio.gather(*semaphore_coros, return_exceptions=False)
+        gathered = await asyncio.gather(*semaphore_coros, return_exceptions=False)
+        return gathered
 
     def reset(self) -> None:
         """Reset the semaphore (mainly for testing)."""

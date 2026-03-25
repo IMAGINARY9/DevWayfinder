@@ -119,61 +119,61 @@ class CostEstimate:
 
 def estimate_tokens_for_text(text: str | None) -> int:
     """Estimate token count for text using character ratio.
-    
+
     Args:
         text: Text to estimate tokens for
-        
+
     Returns:
         Estimated token count
     """
     if not text:
         return 0
-    
+
     # Simple estimation: characters / avg_chars_per_token
     return max(1, len(text) // AVERAGE_CHARS_PER_TOKEN)
 
 
 def estimate_context_tokens(context: SummarizationContext) -> int:
     """Estimate token count for a summarization context.
-    
+
     Args:
         context: Summarization context with module info
-        
+
     Returns:
         Estimated tokens in context
     """
     total = 0
-    
+
     # Module name and metadata
     total += estimate_tokens_for_text(context.module_name)
-    
+
     # File content (if present)
     if context.file_content:
         total += estimate_tokens_for_text(context.file_content)
-    
+
     # Code signatures
     for sig in context.signatures:
         total += estimate_tokens_for_text(sig)
-    
+
     # Docstrings
     for doc in context.docstrings:
         total += estimate_tokens_for_text(doc)
-    
+
     # Imports/exports/neighbors
     total += len(context.imports) * 4  # ~4 tokens per import
     total += len(context.exports) * 4  # ~4 tokens per export
     total += len(context.neighbors) * 4  # ~4 tokens per neighbor
-    
+
     # System prompt baseline
     system_baseline = 50  # ~50 tokens for system prompt
     total += system_baseline
-    
+
     return total
 
 
 def estimate_output_tokens() -> int:
     """Estimate typical output tokens for a summary.
-    
+
     Returns:
         Estimated output tokens (based on max_tokens from templates)
     """
@@ -189,17 +189,17 @@ def estimate_total_tokens(
     output_tokens: int | None = None,
 ) -> TokenEstimate:
     """Estimate total tokens for context + response.
-    
+
     Args:
         context: Summarization context
         output_tokens: Expected output tokens (defaults to estimate)
-        
+
     Returns:
         TokenEstimate with input, output, total
     """
     input_tok = estimate_context_tokens(context)
     output_tok = output_tokens or estimate_output_tokens()
-    
+
     return TokenEstimate(
         input_tokens=input_tok,
         output_tokens=output_tok,
@@ -212,28 +212,25 @@ def estimate_cost(
     model_name: str | None = None,
 ) -> CostEstimate:
     """Estimate cost for token usage based on model pricing.
-    
+
     Args:
         token_estimate: Token usage estimate
         model_name: Name of the model (for pricing lookup)
-        
+
     Returns:
         CostEstimate with input, output, total costs
     """
     if not model_name:
         model_name = "gpt-4o-mini"  # Default model
-    
+
     # Get pricing for model (default to free if unknown)
-    pricing = MODEL_PRICING.get(
-        model_name,
-        {"input_cost_per_1m": 0.0, "output_cost_per_1m": 0.0}
-    )
-    
+    pricing = MODEL_PRICING.get(model_name, {"input_cost_per_1m": 0.0, "output_cost_per_1m": 0.0})
+
     # Calculate costs (pricing per 1M tokens, convert to per 1K)
     input_cost = (token_estimate.input_tokens / 1_000_000) * pricing["input_cost_per_1m"]
     output_cost = (token_estimate.output_tokens / 1_000_000) * pricing["output_cost_per_1m"]
     total_cost = input_cost + output_cost
-    
+
     return CostEstimate(
         input_cost=input_cost,
         output_cost=output_cost,
@@ -246,11 +243,11 @@ def estimate_cost_for_context(
     model_name: str | None = None,
 ) -> CostEstimate:
     """Estimate cost directly from context.
-    
+
     Args:
         context: Summarization context
         model_name: Model name for pricing
-        
+
     Returns:
         CostEstimate
     """
@@ -292,16 +289,16 @@ class BatchCostSummary:
     def __str__(self) -> str:
         """Format summary for display."""
         lines = [
-            f"Generation Summary",
-            f"─" * 40,
+            "Generation Summary",
+            "─" * 40,
             f"Modules analyzed:    {self.operations_count}",
             f"LLM summaries:       {self.llm_operations}",
             f"Heuristic/cached:    {self.free_operations}",
-            f"",
+            "",
             f"Tokens used:         {self.total_tokens:,}",
             f"├─ Input:            {self.input_tokens:,}",
             f"└─ Output:           {self.output_tokens:,}",
-            f"",
+            "",
             f"Estimated cost:      ${self.total_cost:.6f}",
             f"Cost per summary:    ${self.cost_per_operation:.6f}",
         ]

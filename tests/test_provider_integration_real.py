@@ -160,7 +160,9 @@ async def test_ollama_full_pipeline_generate_live() -> None:
     base_url = os.getenv("DEVWAYFINDER_OLLAMA_BASE_URL", "http://localhost:11434")
     project_path = Path(__file__).parent / "fixtures" / "sample_project"
 
-    probe_provider = create_provider(ProviderConfig(provider="ollama", base_url=base_url, model_name=""))
+    probe_provider = create_provider(
+        ProviderConfig(provider="ollama", base_url=base_url, model_name="")
+    )
     try:
         health = await probe_provider.health_check()
     except Exception as exc:  # pragma: no cover - environment dependent
@@ -333,7 +335,9 @@ async def test_ollama_pipeline_performance_baseline_live() -> None:
     base_url = os.getenv("DEVWAYFINDER_OLLAMA_BASE_URL", "http://localhost:11434")
     project_path = Path(__file__).parent / "fixtures" / "sample_project"
 
-    probe_provider = create_provider(ProviderConfig(provider="ollama", base_url=base_url, model_name=""))
+    probe_provider = create_provider(
+        ProviderConfig(provider="ollama", base_url=base_url, model_name="")
+    )
     try:
         health = await probe_provider.health_check()
     except Exception as exc:  # pragma: no cover - environment dependent

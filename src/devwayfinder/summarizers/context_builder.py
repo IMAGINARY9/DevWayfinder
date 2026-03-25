@@ -208,7 +208,9 @@ class ContextBuilder:
         core_modules: list[str] = []
         has_cycles = False
         if graph is not None:
-            core_modules = [m.name for m in graph.get_core_modules(threshold=3)[:3]]  # Reduced from 5
+            core_modules = [
+                m.name for m in graph.get_core_modules(threshold=3)[:3]
+            ]  # Reduced from 5
             has_cycles = graph.has_cycles()
 
         # Optimization: reduce README excerpt from 500 to 200 characters

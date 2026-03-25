@@ -88,7 +88,7 @@ Ollama comes with pre-trained models. Choose one based on your needs:
 
 | Model | Size | Speed | Quality | RAM Needed | Command |
 |-------|------|-------|---------|-----------|---------|
-| **Mistral 7B** ⭐ | 4.1GB | Fast | Good | 8GB | `ollama pull mistral` |
+| **Mistral 7B** | 4.1GB | Fast | Good | 8GB | `ollama pull mistral` |
 | **Llama 2 7B** | 3.8GB | Fast | Good | 8GB | `ollama pull llama2` |
 | **Llama 3.2 8B** | 4.7GB | Fast | Good | 8GB | `ollama pull llama3.2:8b` |
 | **Phi-3 Mini** | 2.3GB | Very Fast | Fair | 4GB | `ollama pull phi3:mini` |

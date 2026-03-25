@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class RetryManager:
     """Manages retry logic for provider calls with exponential backoff.
-    
+
     Handles:
     - Retry configuration (max attempts, delays)
     - Exponential backoff calculation

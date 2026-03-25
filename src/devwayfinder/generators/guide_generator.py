@@ -210,7 +210,9 @@ class GuideGenerator:
             modules_summarized=len(summaries),
             llm_calls_made=self._llm_calls,
             total_tokens_used=sum(self._summary_tokens.values()),
-            heuristic_summaries=sum(1 for p in self._summary_providers.values() if p == "heuristic"),
+            heuristic_summaries=sum(
+                1 for p in self._summary_providers.values() if p == "heuristic"
+            ),
             estimated_cost_usd=self._estimate_generation_cost(),
             errors=errors,
         )
@@ -517,9 +519,9 @@ class GuideGenerator:
         from devwayfinder.utils.tokens import CostEstimate, TokenEstimate, estimate_cost
 
         token_estimate = TokenEstimate(
-            input_tokens=self._summary_tokens and sum(self._summary_tokens.values()) or 0,
+            input_tokens=(self._summary_tokens and sum(self._summary_tokens.values())) or 0,
             output_tokens=0,
-            total_tokens=self._summary_tokens and sum(self._summary_tokens.values()) or 0,
+            total_tokens=(self._summary_tokens and sum(self._summary_tokens.values())) or 0,
         )
         model_name = self._get_model_name()
         cost: CostEstimate = estimate_cost(token_estimate, model_name=model_name)

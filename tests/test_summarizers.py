@@ -149,7 +149,6 @@ class TestPromptTemplates:
     def test_adaptive_template_small_utility(self, tmp_path: Path) -> None:
         """Small modules (< 50 LOC) should get UTILITY_MODULE_TEMPLATE."""
         from devwayfinder.summarizers import (
-            CORE_MODULE_TEMPLATE,
             UTILITY_MODULE_TEMPLATE,
             get_adaptive_template,
         )

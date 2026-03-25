@@ -236,7 +236,9 @@ async def _estimate_module_count(project_path: Path) -> int:
     return len(info.source_files)
 
 
-def _estimate_preflight_cost(*, module_count: int, model_name: str, use_llm: bool) -> dict[str, int | float]:
+def _estimate_preflight_cost(
+    *, module_count: int, model_name: str, use_llm: bool
+) -> dict[str, int | float]:
     """Estimate token and cost footprint before running generation."""
     if not use_llm or module_count == 0:
         return {

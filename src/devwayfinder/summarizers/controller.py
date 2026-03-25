@@ -11,7 +11,6 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from devwayfinder.core.exceptions import ProviderError
 from devwayfinder.summarizers.concurrency import ConcurrencyPool
 from devwayfinder.summarizers.context_builder import ContextBuilder
 from devwayfinder.summarizers.provider_chain import ProviderChain
@@ -19,14 +18,11 @@ from devwayfinder.summarizers.retry import RetryManager
 from devwayfinder.summarizers.templates import (
     ARCHITECTURE_SUMMARY_TEMPLATE,
     ENTRY_POINT_SUMMARY_TEMPLATE,
-    MODULE_SUMMARY_TEMPLATE,
     PromptTemplate,
     SummarizationType,
     get_adaptive_template,
 )
 from devwayfinder.utils.tokens import (
-    estimate_cost_for_context,
-    estimate_output_tokens,
     estimate_total_tokens,
 )
 
@@ -81,7 +77,7 @@ class SummarizationController:
     - ProviderChain: Provider selection and fallback
     - RetryManager: Retry logic with exponential backoff
     - ConcurrencyPool: Semaphore-based concurrency control
-    
+
     Single responsibility: Coordinate orchestration of summarization pipeline.
     """
 
@@ -167,16 +163,17 @@ class SummarizationController:
             SummarizationResult with generated summary
         """
         context = self.context_builder.from_python_analysis(file_path, analysis, graph=graph)
-        
+
         # Create a temporary module object for adaptive templating
         # Extract metrics from analysis results
-        loc = len(analysis.content.splitlines()) if analysis.content else 0
-        
+        loc = len(context.file_content.splitlines()) if context.file_content else 0
+
         # Estimate complexity from number of classes and functions
         complexity = float(len(analysis.classes) + len(analysis.functions)) / max(1, loc // 50)
-        
+
         # Create minimal module for template selection
         from devwayfinder.core.models import Module, ModuleType
+
         temp_module = Module(
             name=file_path.stem,
             path=file_path,
@@ -185,7 +182,7 @@ class SummarizationController:
             loc=loc,
             complexity=complexity,
         )
-        
+
         template = get_adaptive_template(temp_module)
         return await self._summarize_with_fallback(
             context=context,
@@ -214,18 +211,27 @@ class SummarizationController:
             return await self.summarize_module(module, graph=graph)
 
         # Create tasks: (module_path, coroutine)
-        tasks = [(str(m.path), lambda m=m: _summarize_one(m)) for m in modules]
+        tasks = tuple((str(m.path), (lambda m=m: _summarize_one(m))) for m in modules)
 
         # Run with concurrency control
         results = await self.concurrency_pool.run_concurrent(tasks)
 
         # Convert results to dict
         output: dict[str, SummarizationResult] = {}
-        for i, module in enumerate(modules):
+        for module in modules:
             module_path = str(module.path)
             result = results.get(module_path)
 
-            if isinstance(result, BaseException):
+            if result is None:
+                output[module_path] = SummarizationResult(
+                    summary="",
+                    provider_used="none",
+                    summary_type=SummarizationType.MODULE,
+                    module_name=module.name,
+                    success=False,
+                    error="No result returned for module",
+                )
+            elif isinstance(result, BaseException):
                 output[module_path] = SummarizationResult(
                     summary="",
                     provider_used="none",
@@ -314,7 +320,7 @@ class SummarizationController:
         """
 
         async def _summarize_one(module: Module) -> tuple[str, SummarizationResult]:
-            async with self.semaphore:
+            async with self.concurrency_pool.semaphore:
                 result = await self.summarize_entry_point(module, graph=graph)
                 return str(module.path), result
 
@@ -375,7 +381,7 @@ class SummarizationController:
                 summary_type=summary_type,
                 module_name=context.module_name,
                 success=True,
-                tokens_used=total_tokens,
+                tokens_used=total_tokens.total_tokens,
             )
 
         # All providers failed, try heuristic fallback
