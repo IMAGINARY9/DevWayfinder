@@ -1,7 +1,7 @@
 # DevWayfinder — Implementation Plan
 
-> **Version:** 2.1.0  
-> **Status:** MVP 2 Complete  
+> **Version:** 2.5.0  
+> **Status:** MVP 2 Complete, MVP 2.5 In Progress  
 > **Last Updated:** 2026-03-24  
 > **Authoritative Source:** This document is the single source of truth for development roadmap and milestones.
 
@@ -478,7 +478,119 @@ Assembles analysis + summaries into the final onboarding document.
 
 ---
 
-## 6. MVP 3 Detailed Plan: VS Code Extension & Plugin System
+## 6. MVP 2.5 Detailed Plan: Optimization before MVP 3 Extension
+
+**Goal:** Improve code quality, performance, token efficiency, and error handling before extending to VS Code extension ecosystem in MVP 3.
+
+**Timeline:** Week 7.5-9 (parallel track with completion of MVP 2)
+
+**Status:** 🔄 In Progress
+
+### Priority 1: Core Quality Improvements
+
+#### Priority 1a: Test Coverage to 80% ✅
+**Status:** Complete
+- [x] Analyzed coverage gaps (76% → 77.93% with 48 new tests)
+- [x] Added exception hierarchy tests (10 tests covering all 13 custom exceptions)
+- [x] Added provider completeness tests (OpenAI-compat, Ollama)
+- [x] Added analyzer edge case tests (async, decorated, nested classes; circular deps)
+- [x] Added start-here algorithm tests
+- [x] Added graph builder edge case tests
+- [x] Run: 289 tests, 77.93% coverage (2.07% gap remaining)
+- [x] First milestone commit: aa32b8a
+
+#### Priority 1b: Token Counting & Cost Reporting 🔄
+**Status:** Complete (44 tests added)
+- [x] Created `src/devwayfinder/utils/tokens.py` module (240+ lines)
+- [x] Implemented `TokenEstimate` dataclass with input/output/total tokens
+- [x] Implemented `CostEstimate` dataclass with USD cost formatting
+- [x] Implemented `BatchCostSummary` for batch operation rollup
+- [x] Created model pricing database (6 OpenAI + 4 local models with context windows)
+- [x] Implemented `estimate_tokens_for_text()` — character-based estimation (4 chars/token)
+- [x] Implemented `estimate_context_tokens()` — full context token calculation
+- [x] Implemented `estimate_output_tokens()` — typical summary output (256 tokens)
+- [x] Implemented `estimate_total_tokens()` — input + output pipeline
+- [x] Implemented `estimate_cost()` — token usage to cost conversion
+- [x] Implemented `estimate_cost_for_context()` — direct context to cost pipeline
+- [x] Integrated into `SummarizationController` — tokens_used field population
+- [x] Added 44 comprehensive tests (test_tokens.py)
+- [x] Coverage: tokens.py 98%, total 78.33% (1.67% gap from target)
+- [x] Tests: 346 passing (44 new token tests)
+- [x] Second milestone commit: bfab784
+
+**Key Decisions:**
+- Character-based token estimation (4 avg chars/token) to avoid tiktoken dependency
+- Free local models configured with $0 cost for transparent use
+- Pricing data from OpenAI public rates (2026-03-24)
+- Context manager pattern ready for future CLI cost display
+
+#### Priority 1c: Interface Segregation (SummarizationController)
+**Status:** Not started
+- [ ] Split SummarizationController (currently 5 responsibilities)
+- [ ] Extract `RetryManager` — retry logic with exponential backoff
+- [ ] Extract `ConcurrencyPool` — semaphore and batch concurrency
+- [ ] Extract `ProviderChain` — provider fallback orchestration
+- [ ] Estimated effort: 4 hours
+- [ ] Success criteria: Each class has single responsibility per SOLID
+
+#### Priority 1d: Adaptive Prompts by Module Complexity
+**Status:** Not started
+- [ ] Implement size-aware prompt templates
+- [ ] Scale token output by module LOC and complexity
+- [ ] Short prompts for simple modules (250 tokens down from 256)
+- [ ] Extended prompts for complex modules (400+ tokens)
+- [ ] Estimated savings: 20-30% total token usage
+- [ ] Estimated effort: 3-4 hours
+- [ ] Success criteria: 30% cost reduction on typical project analysis
+
+#### Priority 1e: UX Improvements
+**Status:** Not started
+- [ ] Add progress spinner when running in heuristic mode (no LLM)
+- [ ] Add quality indicator badges (LLM ✓ vs heuristic ⚠️ in summaries)
+- [ ] Simplify CLI options (remove --no-graph, --no-metrics as defaults will be smart)
+- [ ] Add cost estimate before expensive operations
+- [ ] Estimated effort: 4-5 hours
+- [ ] Success criteria: Better user experience and transparency
+
+### Priority 2: Integration Testing & Performance
+
+#### Priority 2a: Real Integration Tests
+**Status:** Not started
+- [ ] Create @pytest.mark.integration tests with actual Ollama instance
+- [ ] Create @pytest.mark.requires_openai tests (skipped without API key)
+- [ ] Test full pipeline: analyze → summarize → generate guide
+- [ ] Performance benchmarks on sample projects
+- [ ] Estimated effort: 6-8 hours
+- [ ] Success criteria: Real provider integration tested, performance baseline established
+
+#### Priority 2b: Context Optimization
+**Status:** Not started
+- [ ] Analyze context content distribution (what % of tokens used for what info)
+- [ ] Remove redundant context pieces
+- [ ] Optimize context builder output
+- [ ] Estimated savings: 15-20% context token reduction
+- [ ] Estimated effort: 4 hours
+- [ ] Success criteria: Context tokens reduced by 15%+
+
+### Priority 3: Documentation & Finalization
+
+#### Priority 3a: MVP 2.5 Quality Documentation
+**Status:** Not started
+- [ ] Update USAGE.md with token cost visibility
+- [ ] Update CONFIGURATION.md with cost reporting options
+- [ ] Create PERFORMANCE.md with benchmarks
+- [ ] Estimated effort: 3 hours
+
+#### Priority 3b: Edge Case Handling
+**Status:** Not started
+- [ ] Test with very large projects (1000+ files)
+- [ ] Test with unusual file encodings
+- [ ] Test with circular dependency chains
+- [ ] Estimated effort: 3-4 hours
+
+---
+
+## 7. MVP 3 Detailed Plan: VS Code Extension & Plugin System
 
 ### Phase 3.1: Analyzer Plugin Registry ⏳
 - [ ] Design plugin discovery mechanism (entry points or directory scan)
