@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from typer.testing import CliRunner
@@ -12,6 +13,11 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 runner = CliRunner()
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape sequences from terminal output."""
+    return re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", text)
 
 
 class TestVersionCommand:
@@ -35,11 +41,12 @@ class TestAnalyzeCommand:
 
     def test_analyze_help(self) -> None:
         """Test analyze command help."""
-        result = runner.invoke(app, ["analyze", "--help"])
+        result = runner.invoke(app, ["analyze", "--help"], color=False)
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "Analyze project structure" in result.output
-        assert "--verbose" in result.output
-        assert "--json" in result.output
+        assert "Analyze project structure" in output
+        assert "--verbose" in output
+        assert "--json" in output
 
     def test_analyze_current_project(self, tmp_path: Path) -> None:
         """Test analyze command on a simple project."""
@@ -81,12 +88,13 @@ class TestGenerateCommand:
 
     def test_generate_help(self) -> None:
         """Test generate command help."""
-        result = runner.invoke(app, ["generate", "--help"])
+        result = runner.invoke(app, ["generate", "--help"], color=False)
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "Generate onboarding guide" in result.output
-        assert "--output" in result.output
-        assert "--no-llm" in result.output
-        assert "--model-provider" in result.output
+        assert "Generate onboarding guide" in output
+        assert "--output" in output
+        assert "--no-llm" in output
+        assert "--model-provider" in output
 
     def test_generate_heuristic_mode(self, tmp_path: Path) -> None:
         """Test generate command with heuristics only."""
@@ -125,11 +133,12 @@ class TestTestModelCommand:
 
     def test_test_model_help(self) -> None:
         """Test test-model command help."""
-        result = runner.invoke(app, ["test-model", "--help"])
+        result = runner.invoke(app, ["test-model", "--help"], color=False)
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "Test connection" in result.output
-        assert "--provider" in result.output
-        assert "--timeout" in result.output
+        assert "Test connection" in output
+        assert "--provider" in output
+        assert "--timeout" in output
 
     def test_test_model_invalid_provider(self) -> None:
         """Test test-model with invalid provider."""
