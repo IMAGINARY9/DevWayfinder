@@ -12,7 +12,10 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from devwayfinder.core.exceptions import ProviderError
+from devwayfinder.summarizers.concurrency import ConcurrencyPool
 from devwayfinder.summarizers.context_builder import ContextBuilder
+from devwayfinder.summarizers.provider_chain import ProviderChain
+from devwayfinder.summarizers.retry import RetryManager
 from devwayfinder.summarizers.templates import (
     ARCHITECTURE_SUMMARY_TEMPLATE,
     ENTRY_POINT_SUMMARY_TEMPLATE,
@@ -73,11 +76,12 @@ class SummarizationConfig:
 class SummarizationController:
     """Orchestrates summarization of code modules.
 
-    The controller coordinates:
-    1. Building context from analysis results
-    2. Selecting and calling providers (with fallback chain)
-    3. Managing concurrency for batch operations
-    4. Handling errors and retries
+    Delegates to specialized managers:
+    - ProviderChain: Provider selection and fallback
+    - RetryManager: Retry logic with exponential backoff
+    - ConcurrencyPool: Semaphore-based concurrency control
+    
+    Single responsibility: Coordinate orchestration of summarization pipeline.
     """
 
     def __init__(
@@ -94,14 +98,20 @@ class SummarizationController:
         self.project_root = project_root
         self.config = config or SummarizationConfig()
         self.context_builder = ContextBuilder(project_root)
-        self._semaphore: asyncio.Semaphore | None = None
 
-    @property
-    def semaphore(self) -> asyncio.Semaphore:
-        """Lazy semaphore initialization for concurrency control."""
-        if self._semaphore is None:
-            self._semaphore = asyncio.Semaphore(self.config.max_concurrent_requests)
-        return self._semaphore
+        # Initialize specialized managers
+        self.retry_manager = RetryManager(
+            max_retries=self.config.max_retries,
+            retry_delay=self.config.retry_delay,
+        )
+        self.concurrency_pool = ConcurrencyPool(
+            max_concurrent=self.config.max_concurrent_requests,
+        )
+        self.provider_chain = ProviderChain(
+            providers=self.config.providers,
+            use_heuristic_fallback=self.config.use_heuristic_fallback,
+            retry_manager=self.retry_manager,
+        )
 
     # =========================================================================
     # Module-Level Summarization
@@ -171,30 +181,33 @@ class SummarizationController:
             Dict mapping module path to SummarizationResult
         """
 
-        async def _summarize_one(module: Module) -> tuple[str, SummarizationResult]:
-            async with self.semaphore:
-                result = await self.summarize_module(module, graph=graph)
-                return str(module.path), result
+        async def _summarize_one(module: Module) -> SummarizationResult:
+            """Summarize a single module."""
+            return await self.summarize_module(module, graph=graph)
 
-        tasks = [_summarize_one(m) for m in modules]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Create tasks: (module_path, coroutine)
+        tasks = [(str(m.path), lambda m=m: _summarize_one(m)) for m in modules]
 
+        # Run with concurrency control
+        results = await self.concurrency_pool.run_concurrent(tasks)
+
+        # Convert results to dict
         output: dict[str, SummarizationResult] = {}
-        for i, result in enumerate(results):
-            module_path = str(modules[i].path)
+        for i, module in enumerate(modules):
+            module_path = str(module.path)
+            result = results.get(module_path)
+
             if isinstance(result, BaseException):
                 output[module_path] = SummarizationResult(
                     summary="",
                     provider_used="none",
                     summary_type=SummarizationType.MODULE,
-                    module_name=modules[i].name,
+                    module_name=module.name,
                     success=False,
                     error=str(result),
                 )
             else:
-                # result is tuple[str, SummarizationResult]
-                path, summ_result = result
-                output[path] = summ_result
+                output[module_path] = result
 
         return output
 
@@ -319,35 +332,30 @@ class SummarizationController:
         Returns:
             SummarizationResult from first successful provider
         """
-        last_error: str | None = None
+        # Call provider chain
+        provider_name, summary = await self.provider_chain.call_provider_chain(
+            None,  # Not used since retry_manager is in chain
+            context,
+        )
 
-        # Try each configured provider in order
-        for provider in self.config.providers:
-            try:
-                summary = await self._call_provider_with_retry(provider, context)
-                
-                # Estimate tokens for successful provider call
-                total_tokens = estimate_total_tokens(context)
-                
-                return SummarizationResult(
-                    summary=summary,
-                    provider_used=provider.name,
-                    summary_type=summary_type,
-                    module_name=context.module_name,
-                    success=True,
-                    tokens_used=total_tokens,
-                )
-            except Exception as e:
-                last_error = f"{provider.name}: {e}"
-                logger.warning("Provider %s failed: %s", provider.name, e)
-                continue
-
-        # Fall back to heuristic if enabled
-        if self.config.use_heuristic_fallback:
-            summary = self._generate_heuristic_summary(context, summary_type)
-            # Heuristic uses no tokens (no LLM call)
+        # If a provider succeeded
+        if summary is not None:
+            total_tokens = estimate_total_tokens(context)
             return SummarizationResult(
                 summary=summary,
+                provider_used=provider_name,
+                summary_type=summary_type,
+                module_name=context.module_name,
+                success=True,
+                tokens_used=total_tokens,
+            )
+
+        # All providers failed, try heuristic fallback
+        if self.provider_chain.should_use_heuristic():
+            heuristic_summary = self._generate_heuristic_summary(context, summary_type)
+            # Heuristic uses no tokens (no LLM call)
+            return SummarizationResult(
+                summary=heuristic_summary,
                 provider_used="heuristic",
                 summary_type=summary_type,
                 module_name=context.module_name,
@@ -355,46 +363,15 @@ class SummarizationController:
                 tokens_used=0,
             )
 
-        # All providers failed
+        # All providers and heuristic failed
         return SummarizationResult(
             summary="",
             provider_used="none",
             summary_type=summary_type,
             module_name=context.module_name,
             success=False,
-            error=last_error or "No providers available",
+            error="All providers failed and heuristic fallback is disabled",
             tokens_used=0,
-        )
-
-    async def _call_provider_with_retry(
-        self,
-        provider: ModelProvider,
-        context: SummarizationContext,
-    ) -> str:
-        """Call provider with retry logic.
-
-        Args:
-            provider: Provider to call
-            context: Summarization context
-
-        Returns:
-            Generated summary
-
-        Raises:
-            ProviderError: If all retries fail
-        """
-        last_error: Exception | None = None
-
-        for attempt in range(self.config.max_retries):
-            try:
-                return await provider.summarize(context)
-            except Exception as e:
-                last_error = e
-                if attempt < self.config.max_retries - 1:
-                    await asyncio.sleep(self.config.retry_delay)
-
-        raise ProviderError(
-            f"{provider.name}: Failed after {self.config.max_retries} attempts: {last_error}"
         )
 
     def _generate_heuristic_summary(
@@ -503,14 +480,25 @@ class SummarizationController:
         Args:
             provider: Provider to add
         """
+        self.provider_chain.add_provider(provider)
         self.config.providers.append(provider)
+
+    def remove_provider(self, provider_name: str) -> bool:
+        """Remove a provider from the chain by name.
+
+        Args:
+            provider_name: Name of provider to remove
+
+        Returns:
+            True if provider was removed, False if not found
+        """
+        return self.provider_chain.remove_provider(provider_name)
 
     def clear_providers(self) -> None:
         """Remove all providers from the chain."""
+        self.provider_chain.clear()
         self.config.providers.clear()
 
     async def close(self) -> None:
         """Close all provider connections."""
-        for provider in self.config.providers:
-            if hasattr(provider, "close"):
-                await provider.close()
+        await self.provider_chain.close_all()
