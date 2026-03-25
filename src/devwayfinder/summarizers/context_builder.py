@@ -47,17 +47,18 @@ class ContextBuilder:
         neighbors: list[str] = []
         if graph is not None:
             # Get direct dependencies (both imports and dependents)
+            # Optimization: reduce neighbors from 15 total to 8 total
             deps = graph.get_dependencies(module.path)
             dependents = graph.get_dependents(module.path)
-            neighbors = [m.name for m in deps[:10]]
-            neighbors.extend([m.name for m in dependents[:5]])
-            neighbors = list(dict.fromkeys(neighbors))[:10]  # Dedupe, limit
+            neighbors = [m.name for m in deps[:5]]  # Reduced from 10
+            neighbors.extend([m.name for m in dependents[:3]])  # Reduced from 5
+            neighbors = list(dict.fromkeys(neighbors))[:8]  # Dedupe, limit to 8 total
 
         return SummarizationContext(
             module_name=module.name,
             file_content=file_content,
-            imports=module.imports[:20],
-            exports=module.exports[:20],
+            imports=module.imports[:15],  # Reduced from 20
+            exports=module.exports[:15],  # Reduced from 20
             neighbors=neighbors,
             metadata={
                 "language": module.language,
@@ -83,42 +84,43 @@ class ContextBuilder:
         Returns:
             SummarizationContext with rich Python-specific info
         """
-        # Build function signatures
-        signatures = [f"def {f.name}({', '.join(f.parameters)})" for f in analysis.functions[:15]]
+        # Build function signatures - limit to 5 most important functions
+        # (optimization: reduces tokens while maintaining structure understanding)
+        signatures = [f"def {f.name}({', '.join(f.parameters)})" for f in analysis.functions[:5]]
 
-        # Add class signatures
-        for cls in analysis.classes[:10]:
-            methods = cls.methods[:5]  # methods is already list[str]
+        # Add class signatures - limit to 5 key classes
+        # (optimization: reduces verbosity while preserving class hierarchy info)
+        for cls in analysis.classes[:5]:
+            methods = cls.methods[:3]  # Limit displayed methods
             sig = f"class {cls.name}"
             if cls.bases:
-                sig += f"({', '.join(cls.bases[:3])})"
+                sig += f"({', '.join(cls.bases[:2])})"  # Limit bases shown
             if methods:
                 sig += f" [{', '.join(methods)}]"
             signatures.append(sig)
 
-        # Collect docstrings
+        # Collect docstrings with optimization: prioritize module docstring
+        # (optimization: module docstring is most valuable, then key classes only)
         docstrings = []
         if analysis.module_docstring:
             docstrings.append(analysis.module_docstring)
-        for cls in analysis.classes[:5]:
+        # Only include docstrings for top 3 classes, not all 5+
+        for cls in analysis.classes[:3]:
             if cls.docstring:
-                docstrings.append(f"{cls.name}: {cls.docstring[:200]}")
-        for func in analysis.functions[:5]:
-            if func.docstring:
-                docstrings.append(f"{func.name}: {func.docstring[:200]}")
+                docstrings.append(f"{cls.name}: {cls.docstring[:150]}")  # Truncate to 150 chars
 
-        # Get neighbors from graph
+        # Get neighbors from graph (limit to 5 most important)
         neighbors: list[str] = []
         if graph is not None:
             deps = graph.get_dependencies(file_path)
-            neighbors = [m.name for m in deps[:10]]
+            neighbors = [m.name for m in deps[:5]]  # Reduced from 10
 
         return SummarizationContext(
             module_name=self._relative_name(file_path),
             signatures=signatures,
             docstrings=docstrings,
-            imports=analysis.imports[:20],
-            exports=analysis.exports[:20],
+            imports=analysis.imports[:15],  # Reduced from 20
+            exports=analysis.exports[:15],  # Reduced from 20
             neighbors=neighbors,
             metadata={
                 "language": "python",
@@ -148,12 +150,12 @@ class ContextBuilder:
         neighbors: list[str] = []
         if graph is not None:
             deps = graph.get_dependencies(file_path)
-            neighbors = [m.name for m in deps[:10]]
+            neighbors = [m.name for m in deps[:5]]  # Reduced from 10
 
         return SummarizationContext(
             module_name=self._relative_name(file_path),
-            imports=extraction.imports[:20],
-            exports=extraction.exports[:20],
+            imports=extraction.imports[:15],  # Reduced from 20
+            exports=extraction.exports[:15],  # Reduced from 20
             neighbors=neighbors,
             metadata={
                 "extraction_method": "regex",
@@ -185,33 +187,36 @@ class ContextBuilder:
                 modules_by_dir[parent] = []
             modules_by_dir[parent].append(module.name)
 
-        # Build structure summary
+        # Build structure summary - limit to 10 dirs (was 15)
         structure_lines = []
-        for directory, modules in sorted(modules_by_dir.items())[:15]:
+        for directory, modules in sorted(modules_by_dir.items())[:10]:
             count = len(modules)
-            samples = ", ".join(modules[:3])
-            if count > 3:
+            samples = ", ".join(modules[:2])  # Show 2 samples (was 3)
+            if count > 2:
                 samples += f", ... ({count} files)"
             structure_lines.append(f"  {directory}: {samples}")
 
         # Build imports summary for architecture
         all_imports: set[str] = set()
         for module in project.modules.values():
-            all_imports.update(module.imports[:5])
+            all_imports.update(module.imports[:3])  # Sample only 3 (was 5)
 
         # Get entry points
-        entry_points = [m.name for m in project.entry_points[:5]]
+        entry_points = [m.name for m in project.entry_points[:3]]  # Reduced from 5
 
         # Get graph insights if available
         core_modules: list[str] = []
         has_cycles = False
         if graph is not None:
-            core_modules = [m.name for m in graph.get_core_modules(threshold=3)[:5]]
+            core_modules = [m.name for m in graph.get_core_modules(threshold=3)[:3]]  # Reduced from 5
             has_cycles = graph.has_cycles()
+
+        # Optimization: reduce README excerpt from 500 to 200 characters
+        readme_excerpt = (project.readme_content or "")[:200]
 
         return SummarizationContext(
             module_name=project.name,
-            imports=sorted(all_imports)[:20],
+            imports=sorted(all_imports)[:15],  # Reduced from 20
             exports=entry_points,  # Entry points as "exports" for architecture context
             neighbors=core_modules,  # Core modules as "neighbors" in architecture context
             metadata={
@@ -220,7 +225,7 @@ class ContextBuilder:
                 "primary_language": project.primary_language,
                 "module_count": project.module_count,
                 "directory_structure": "\n".join(structure_lines),
-                "readme_excerpt": (project.readme_content or "")[:500],
+                "readme_excerpt": readme_excerpt,
                 "has_circular_deps": has_cycles,
             },
         )

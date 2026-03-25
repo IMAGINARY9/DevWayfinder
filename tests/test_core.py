@@ -159,6 +159,60 @@ class TestDependencyGraph:
         assert "graph TD" in mermaid
         assert "-->" in mermaid
 
+    def test_cycle_detection_and_find_cycles(self) -> None:
+        """Test that cycles are detected and reported."""
+        graph = DependencyGraph()
+
+        m1 = Module(name="a.py", path=Path("/a.py"), module_type=ModuleType.FILE)
+        m2 = Module(name="b.py", path=Path("/b.py"), module_type=ModuleType.FILE)
+        m3 = Module(name="c.py", path=Path("/c.py"), module_type=ModuleType.FILE)
+
+        graph.add_module(m1)
+        graph.add_module(m2)
+        graph.add_module(m3)
+
+        graph.add_dependency(m1.path, m2.path, "import")
+        graph.add_dependency(m2.path, m3.path, "import")
+        graph.add_dependency(m3.path, m1.path, "import")
+
+        assert graph.has_cycles() is True
+        cycles = graph.find_cycles()
+        assert len(cycles) >= 1
+
+    def test_topological_order_returns_modules_without_cycles(self) -> None:
+        """Test topological ordering for an acyclic graph."""
+        graph = DependencyGraph()
+
+        m1 = Module(name="main.py", path=Path("/main.py"), module_type=ModuleType.FILE)
+        m2 = Module(name="service.py", path=Path("/service.py"), module_type=ModuleType.FILE)
+        m3 = Module(name="repo.py", path=Path("/repo.py"), module_type=ModuleType.FILE)
+
+        graph.add_module(m1)
+        graph.add_module(m2)
+        graph.add_module(m3)
+
+        graph.add_dependency(m1.path, m2.path, "import")
+        graph.add_dependency(m2.path, m3.path, "import")
+
+        order = graph.topological_order()
+        assert len(order) == 3
+        assert graph.has_cycles() is False
+
+    def test_to_ascii_includes_module_names(self) -> None:
+        """Test ASCII export contains module names for quick inspection."""
+        graph = DependencyGraph()
+
+        m1 = Module(name="main.py", path=Path("/main.py"), module_type=ModuleType.FILE)
+        m2 = Module(name="util.py", path=Path("/util.py"), module_type=ModuleType.FILE)
+
+        graph.add_module(m1)
+        graph.add_module(m2)
+        graph.add_dependency(m1.path, m2.path, "import")
+
+        ascii_graph = graph.to_ascii()
+        assert "main.py" in ascii_graph
+        assert "util.py" in ascii_graph
+
 
 class TestOnboardingGuide:
     """Tests for OnboardingGuide."""
