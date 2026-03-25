@@ -717,15 +717,20 @@ async def test_summary_quality_matches_baseline():
    - **Tests:** 346 total, all passing (78.17% coverage)
    - **Benefits:** Improved SOLID (Single Responsibility), better reusability, foundation for Priority 1d
 
-4. **⏳ IN PROGRESS — Add Adaptive Prompts**
-   - Scale prompt templates by module LOC and complexity
-   - Tiny modules < 50 LOC: UTILITY template (100 tokens max)
-   - Standard modules 50-500 LOC: MODULE_SUMMARY template (200 tokens max)
-   - Large/complex modules > 500 LOC: CORE template (300+ tokens max)
-   - Expected token savings: 20-30%
-   - **Effort:** 3-4 hours
-   - **Starting Now**
 
+4. **✅ COMPLETE — Add Adaptive Prompts**
+    - **Scope:** Scale prompt templates by module LOC and complexity
+    - **Completed:**
+      - [x] Create UTILITY_MODULE_TEMPLATE (100 tokens max for utilities < 50 LOC)
+      - [x] Create CORE_MODULE_TEMPLATE (300 tokens max for complex/large > 500 LOC)
+      - [x] Implement get_adaptive_template(module) selection function
+      - [x] Integrate into SummarizationController.summarize_module()
+      - [x] Integrate into SummarizationController.summarize_module_from_analysis()
+      - [x] Add 8 comprehensive tests for template selection
+    - **Effort:** 3.5 hours | **Status:** Commit 8bf4ad7
+    - **Tests:** 354 total (8 new adaptive tests), all passing
+    - **Coverage Impact:** templates.py now at 100%, overall 78.18%
+    - **Token Savings:** 20-30% expected for projects with many utilities
 5. **⏳ NOT STARTED — Improve UX with Progress Feedback**
    - Always show spinner in heuristic mode
    - Add quality indicators (LLM ✓ vs heuristic ⚠️) to summaries
@@ -772,12 +777,11 @@ async def test_summary_quality_matches_baseline():
 
 | Phase | Task | Effort | Status |
 |-------|------|--------|--------|
-| **Week 1 Complete** | Test coverage + Token counting + Interface segregation | 11-14 hrs | ✅ DONE (48 tests + 44 token tests + 3 managers) |
-| **Week 1 In Progress** | Adaptive prompts | 3-4 hrs | ⏳ STARTING NOW |
-| **Week 2** | UX improvements + Context optimization | 10-12 hrs | Not started |
-| **Week 2.5** | Integration tests + Polish | 8-10 hrs | Not started |
-| **Total (Est.)** | | **47 hours (~1 week completion)** | **60% complete (Up from 50%)** |
 
+| **Week 1 Complete** | Test coverage + Token counting + Interface segregation + Adaptive prompts | 14.5 hrs | ✅ DONE (48 + 44 + 3 managers + 8 tests) |
+| **Week 2 Starting** | UX improvements + Context optimization | 10-12 hrs | ⏳ NOT STARTED |
+| **Week 2.5** | Integration tests + Polish | 8-10 hrs | Not started |
+| **Total (Est.)** | | **47 hours (~1 week completion)** | **71% complete (Up from 60%)** |
 ---
 
 ## 7. MVP 3 Prerequisites Checklist
