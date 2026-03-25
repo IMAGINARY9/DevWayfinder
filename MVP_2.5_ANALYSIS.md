@@ -705,22 +705,26 @@ async def test_summary_quality_matches_baseline():
    - **Effort:** 4-6 hours | **Status:** Commit bfab784
    - **Tests Added:** 346 total (44 new), 78.33% coverage
 
-3. **⏳ IN PROGRESS — Fix Interface Segregation Issues**
+3. **✅ COMPLETE — Fix Interface Segregation Issues**
    - **Scope:** Split `SummarizationController` into focused classes with single responsibilities
-   - **Tasks:**
-     - [ ] Extract `RetryManager` for retry logic with exponential backoff
-     - [ ] Extract `ConcurrencyPool` for semaphore and batch concurrency management
-     - [ ] Extract `ProviderChain` for provider fallback orchestration
-     - [ ] Inject dependencies properly for testability
-   - **Effort:** 4 hours
-   - **Starting Next**
+   - **Completed Tasks:**
+     - [x] Extract `RetryManager` for retry logic with exponential backoff (95 lines)
+     - [x] Extract `ConcurrencyPool` for semaphore and batch concurrency management (110 lines)
+     - [x] Extract `ProviderChain` for provider fallback orchestration (146 lines)
+     - [x] Inject dependencies properly for testability
+     - [x] Reduce controller from 7 to ~3 core responsibilities
+   - **Effort:** 4 hours | **Status:** Commit eefa3ae
+   - **Tests:** 346 total, all passing (78.17% coverage)
+   - **Benefits:** Improved SOLID (Single Responsibility), better reusability, foundation for Priority 1d
 
-4. **⏳ NOT STARTED — Add Adaptive Prompts**
+4. **⏳ IN PROGRESS — Add Adaptive Prompts**
    - Scale prompt templates by module LOC and complexity
-   - Short prompts for utilities (250 tokens)
-   - Extended prompts for complex modules (400+ tokens)
+   - Tiny modules < 50 LOC: UTILITY template (100 tokens max)
+   - Standard modules 50-500 LOC: MODULE_SUMMARY template (200 tokens max)
+   - Large/complex modules > 500 LOC: CORE template (300+ tokens max)
    - Expected token savings: 20-30%
    - **Effort:** 3-4 hours
+   - **Starting Now**
 
 5. **⏳ NOT STARTED — Improve UX with Progress Feedback**
    - Always show spinner in heuristic mode
@@ -768,11 +772,11 @@ async def test_summary_quality_matches_baseline():
 
 | Phase | Task | Effort | Status |
 |-------|------|--------|--------|
-| **Week 1 Complete** | Test coverage + Token counting | 7-10 hrs | ✅ DONE (48 tests, 44 token tests) |
-| **Week 1 In Progress** | Interface segregation + Adaptive prompts | 7-8 hrs | ⏳ STARTING |
+| **Week 1 Complete** | Test coverage + Token counting + Interface segregation | 11-14 hrs | ✅ DONE (48 tests + 44 token tests + 3 managers) |
+| **Week 1 In Progress** | Adaptive prompts | 3-4 hrs | ⏳ STARTING NOW |
 | **Week 2** | UX improvements + Context optimization | 10-12 hrs | Not started |
 | **Week 2.5** | Integration tests + Polish | 8-10 hrs | Not started |
-| **Total (Est.)** | | **47 hours (~1 week completion)** | **50% complete** |
+| **Total (Est.)** | | **47 hours (~1 week completion)** | **60% complete (Up from 50%)** |
 
 ---
 
