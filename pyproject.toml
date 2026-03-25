@@ -191,6 +191,9 @@ addopts = [
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
+    "requires_ollama: marks tests that require a running Ollama endpoint",
+    "requires_openai: marks tests that require OpenAI API credentials",
+    "requires_openai_compat: marks tests that require OpenAI-compatible local endpoints (LM Studio/vLLM/etc)",
 ]
 
 # ============================================================================

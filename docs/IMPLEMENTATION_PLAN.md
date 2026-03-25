@@ -558,11 +558,11 @@ Assembles analysis + summaries into the final onboarding document.
 ### Priority 2: Integration Testing & Performance
 
 #### Priority 2a: Real Integration Tests
-**Status:** Not started
-- [ ] Create @pytest.mark.integration tests with actual Ollama instance
-- [ ] Create @pytest.mark.requires_openai tests (skipped without API key)
-- [ ] Test full pipeline: analyze → summarize → generate guide
-- [ ] Performance benchmarks on sample projects
+**Status:** In progress
+- [x] Create `@pytest.mark.integration` tests with actual Ollama instance
+- [x] Create `@pytest.mark.requires_openai` tests (skipped without API key)
+- [x] Test full pipeline: analyze → summarize → generate guide
+- [x] Add live baseline performance test on sample project (`@pytest.mark.slow`)
 - [ ] Estimated effort: 6-8 hours
 - [ ] Success criteria: Real provider integration tested, performance baseline established
 
