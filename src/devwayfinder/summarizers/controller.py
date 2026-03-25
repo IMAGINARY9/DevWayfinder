@@ -22,6 +22,7 @@ from devwayfinder.summarizers.templates import (
     MODULE_SUMMARY_TEMPLATE,
     PromptTemplate,
     SummarizationType,
+    get_adaptive_template,
 )
 from devwayfinder.utils.tokens import (
     estimate_cost_for_context,
@@ -126,6 +127,9 @@ class SummarizationController:
     ) -> SummarizationResult:
         """Generate summary for a single module.
 
+        Uses adaptive prompting: template selection is based on module
+        characteristics (LOC, complexity) to balance quality vs. tokens.
+
         Args:
             module: Module to summarize
             graph: Optional dependency graph for context
@@ -135,9 +139,10 @@ class SummarizationController:
             SummarizationResult with generated summary
         """
         context = self.context_builder.from_module(module, graph=graph, file_content=file_content)
+        template = get_adaptive_template(module)
         return await self._summarize_with_fallback(
             context=context,
-            template=MODULE_SUMMARY_TEMPLATE,
+            template=template,
             summary_type=SummarizationType.MODULE,
         )
 
@@ -150,6 +155,9 @@ class SummarizationController:
     ) -> SummarizationResult:
         """Generate summary from Python AST analysis.
 
+        Uses adaptive prompting: template selection is based on
+        analysis results (LOC, complexity metrics).
+
         Args:
             file_path: Path to the analyzed file
             analysis: Python analysis result
@@ -159,9 +167,29 @@ class SummarizationController:
             SummarizationResult with generated summary
         """
         context = self.context_builder.from_python_analysis(file_path, analysis, graph=graph)
+        
+        # Create a temporary module object for adaptive templating
+        # Extract metrics from analysis results
+        loc = len(analysis.content.splitlines()) if analysis.content else 0
+        
+        # Estimate complexity from number of classes and functions
+        complexity = float(len(analysis.classes) + len(analysis.functions)) / max(1, loc // 50)
+        
+        # Create minimal module for template selection
+        from devwayfinder.core.models import Module, ModuleType
+        temp_module = Module(
+            name=file_path.stem,
+            path=file_path,
+            module_type=ModuleType.FILE,
+            language="python",
+            loc=loc,
+            complexity=complexity,
+        )
+        
+        template = get_adaptive_template(temp_module)
         return await self._summarize_with_fallback(
             context=context,
-            template=MODULE_SUMMARY_TEMPLATE,
+            template=template,
             summary_type=SummarizationType.MODULE,
         )
 

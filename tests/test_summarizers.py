@@ -146,6 +146,138 @@ class TestPromptTemplates:
         assert "test.py" in result
         assert "Some context here" in result
 
+    def test_adaptive_template_small_utility(self, tmp_path: Path) -> None:
+        """Small modules (< 50 LOC) should get UTILITY_MODULE_TEMPLATE."""
+        from devwayfinder.summarizers import (
+            CORE_MODULE_TEMPLATE,
+            UTILITY_MODULE_TEMPLATE,
+            get_adaptive_template,
+        )
+
+        module = Module(
+            name="util.py",
+            path=tmp_path / "util.py",
+            module_type=ModuleType.FILE,
+            language="python",
+            loc=30,  # Small utility
+            complexity=1.0,
+        )
+        template = get_adaptive_template(module)
+        assert template == UTILITY_MODULE_TEMPLATE
+        assert template.max_tokens == 100
+
+    def test_adaptive_template_standard_module(self, tmp_path: Path) -> None:
+        """Standard modules (50-500 LOC) should get MODULE_SUMMARY_TEMPLATE."""
+        from devwayfinder.summarizers import get_adaptive_template
+
+        module = Module(
+            name="core.py",
+            path=tmp_path / "core.py",
+            module_type=ModuleType.FILE,
+            language="python",
+            loc=200,  # Standard size
+            complexity=2.5,
+        )
+        template = get_adaptive_template(module)
+        assert template == MODULE_SUMMARY_TEMPLATE
+        assert template.max_tokens == 200
+
+    def test_adaptive_template_large_module_by_loc(self, tmp_path: Path) -> None:
+        """Large modules (> 500 LOC) should get CORE_MODULE_TEMPLATE."""
+        from devwayfinder.summarizers import CORE_MODULE_TEMPLATE, get_adaptive_template
+
+        module = Module(
+            name="legacy.py",
+            path=tmp_path / "legacy.py",
+            module_type=ModuleType.FILE,
+            language="python",
+            loc=800,  # Large
+            complexity=3.0,
+        )
+        template = get_adaptive_template(module)
+        assert template == CORE_MODULE_TEMPLATE
+        assert template.max_tokens == 300
+
+    def test_adaptive_template_complex_module_by_complexity(self, tmp_path: Path) -> None:
+        """Complex modules (complexity > 5) should get CORE_MODULE_TEMPLATE."""
+        from devwayfinder.summarizers import CORE_MODULE_TEMPLATE, get_adaptive_template
+
+        module = Module(
+            name="complex.py",
+            path=tmp_path / "complex.py",
+            module_type=ModuleType.FILE,
+            language="python",
+            loc=300,  # Medium size
+            complexity=8.5,  # High complexity
+        )
+        template = get_adaptive_template(module)
+        assert template == CORE_MODULE_TEMPLATE
+        assert template.max_tokens == 300
+
+    def test_adaptive_template_handles_none_loc(self, tmp_path: Path) -> None:
+        """Should handle modules with None LOC gracefully."""
+        from devwayfinder.summarizers import get_adaptive_template
+
+        module = Module(
+            name="unknown.py",
+            path=tmp_path / "unknown.py",
+            module_type=ModuleType.FILE,
+            language="python",
+            loc=None,  # No LOC data
+            complexity=None,
+        )
+        template = get_adaptive_template(module)
+        # Should default to MODULE_SUMMARY_TEMPLATE for unknowns
+        assert template == MODULE_SUMMARY_TEMPLATE
+
+    def test_adaptive_template_boundary_at_50_loc(self, tmp_path: Path) -> None:
+        """Boundary test: 50 LOC should use standard template."""
+        from devwayfinder.summarizers import get_adaptive_template
+
+        module = Module(
+            name="boundary.py",
+            path=tmp_path / "boundary.py",
+            module_type=ModuleType.FILE,
+            language="python",
+            loc=50,  # Exactly at boundary
+            complexity=1.0,
+        )
+        template = get_adaptive_template(module)
+        # At 50 LOC, should be standard (not utility)
+        assert template == MODULE_SUMMARY_TEMPLATE
+
+    def test_adaptive_template_boundary_at_500_loc(self, tmp_path: Path) -> None:
+        """Boundary test: 500 LOC should use standard template."""
+        from devwayfinder.summarizers import get_adaptive_template
+
+        module = Module(
+            name="boundary.py",
+            path=tmp_path / "boundary.py",
+            module_type=ModuleType.FILE,
+            language="python",
+            loc=500,  # Exactly at boundary
+            complexity=3.0,
+        )
+        template = get_adaptive_template(module)
+        # At 500 LOC, should be standard (not core)
+        assert template == MODULE_SUMMARY_TEMPLATE
+
+    def test_adaptive_template_boundary_above_500_loc(self, tmp_path: Path) -> None:
+        """Boundary test: 501 LOC should use core template."""
+        from devwayfinder.summarizers import CORE_MODULE_TEMPLATE, get_adaptive_template
+
+        module = Module(
+            name="boundary.py",
+            path=tmp_path / "boundary.py",
+            module_type=ModuleType.FILE,
+            language="python",
+            loc=501,  # Just above boundary
+            complexity=3.0,
+        )
+        template = get_adaptive_template(module)
+        # At 501 LOC, should be core
+        assert template == CORE_MODULE_TEMPLATE
+
 
 # =============================================================================
 # Context Builder Tests

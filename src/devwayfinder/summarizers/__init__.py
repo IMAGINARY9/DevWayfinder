@@ -15,22 +15,31 @@ from devwayfinder.summarizers.provider_chain import ProviderChain
 from devwayfinder.summarizers.retry import RetryManager
 from devwayfinder.summarizers.templates import (
     ARCHITECTURE_SUMMARY_TEMPLATE,
+    CORE_MODULE_TEMPLATE,
     ENTRY_POINT_SUMMARY_TEMPLATE,
     MODULE_SUMMARY_TEMPLATE,
     PromptTemplate,
     SummarizationType,
+    UTILITY_MODULE_TEMPLATE,
+    get_adaptive_template,
     get_template,
 )
 
 __all__ = [
     "ARCHITECTURE_SUMMARY_TEMPLATE",
+    "CORE_MODULE_TEMPLATE",
     "ENTRY_POINT_SUMMARY_TEMPLATE",
     "MODULE_SUMMARY_TEMPLATE",
     "ContextBuilder",
+    "ConcurrencyPool",
     "PromptTemplate",
+    "ProviderChain",
+    "RetryManager",
     "SummarizationConfig",
     "SummarizationController",
     "SummarizationResult",
     "SummarizationType",
+    "UTILITY_MODULE_TEMPLATE",
+    "get_adaptive_template",
     "get_template",
 ]
