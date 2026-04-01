@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Any, IO, cast
+from typing import Any, TextIO, cast
 
 from rich.console import Console
 
@@ -34,4 +34,4 @@ def create_console() -> Console:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-    return Console(file=cast(IO[str], _StdoutProxy()))
+    return Console(file=cast("TextIO", _StdoutProxy()))

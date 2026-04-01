@@ -80,6 +80,7 @@ Rules:
    - `.venv\\Scripts\\python.exe -m pytest tests/test_packaging.py -q`
    - Re-run `.github/workflows/package-smoke.yml` after workflow changes.
    - Re-run `.github/workflows/release.yml` with `publish_target` set to `none` or `testpypi` before production publish changes.
+    - For an actual release, build the distributable artifacts, create and push a `v*` tag, confirm the workflow uploads `dist/*`, then publish with `publish_target=testpypi` first and `publish_target=pypi` only after verification.
 
 ## 6. Current Priorities
 
