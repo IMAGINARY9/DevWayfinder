@@ -110,9 +110,13 @@ jobs:
 
   publish:
     name: Publish Package
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_target != 'none' }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_target != 'none') || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) }}
     needs: [build-dist, smoke-install]
     runs-on: ubuntu-latest
+    environment: pipy-publish
+
+    env:
+      TARGET: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && 'pypi' || inputs.publish_target }}
 
     steps:
       - name: Download dist artifacts
