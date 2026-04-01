@@ -16,6 +16,8 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from devwayfinder.cli.console import create_console
+
 if TYPE_CHECKING:
     from types import TracebackType
 
@@ -253,7 +255,7 @@ def create_generation_tracker(console: Console | None = None) -> ProgressTracker
     Returns:
         ProgressTracker configured for generation
     """
-    tracker = ProgressTracker(console=console or Console())
+    tracker = ProgressTracker(console=console or create_console())
 
     tracker.add_phase(
         "analysis",

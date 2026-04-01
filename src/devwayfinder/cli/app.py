@@ -6,13 +6,13 @@ import asyncio
 from pathlib import Path
 
 import typer
-from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich.tree import Tree
 
 from devwayfinder.analyzers import GraphBuilder, StructureAnalyzer
+from devwayfinder.cli.console import create_console
 from devwayfinder.cli.progress import create_generation_tracker
 from devwayfinder.core.exceptions import DevWayfinderError
 from devwayfinder.core.protocols import SummarizationContext
@@ -26,7 +26,7 @@ app = typer.Typer(
     add_completion=False,
 )
 
-console = Console()
+console = create_console()
 SUPPORTED_PROVIDER_HELP = ", ".join(supported_providers())
 
 

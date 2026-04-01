@@ -72,6 +72,8 @@ jobs:
 
       - name: Install wheel and run smoke checks
         shell: bash
+        env:
+          PYTHONUTF8: "1"
         run: |
           python - <<'PY'
           import os

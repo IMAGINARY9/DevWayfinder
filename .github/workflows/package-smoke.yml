@@ -63,6 +63,8 @@ jobs:
 
       - name: Install wheel and execute smoke checks
         shell: bash
+        env:
+          PYTHONUTF8: "1"
         run: |
           python - <<'PY'
           import os
