@@ -1,8 +1,8 @@
 # DevWayfinder — Implementation Plan
 
-> **Version:** 2.5.0  
-> **Status:** MVP 2 Complete, MVP 2.5 In Progress  
-> **Last Updated:** 2026-03-24  
+> **Version:** 2.6.0  
+> **Status:** MVP 2.5 Complete, MVP 3 In Progress  
+> **Last Updated:** 2026-04-01  
 > **Authoritative Source:** This document is the single source of truth for development roadmap and milestones.
 
 ---
@@ -90,7 +90,7 @@ This means each phase completes with a deployable artifact that can be demoed an
 - [x] Dependency graph rendered as Mermaid diagram
 - [x] Incremental re-analysis on file change (via caching layer)
 
-### 🔲 MVP 3: Distribution & Production
+### 🔄 MVP 3: Distribution & Production
 **Goal:** Production-ready command-line tool for public release. Documents are generated simply as Markdown files in a separate `./docs/guides/` folder.
 
 **Timeline:** Week 10-12
@@ -103,8 +103,8 @@ This means each phase completes with a deployable artifact that can be demoed an
 
 **Success Criteria:**
 - [ ] Installable via `pip install devwayfinder`
-- [ ] Documentation complete and verified
-- [ ] Performance benchmarks published
+- [x] Documentation complete and verified
+- [x] Performance benchmarks published
 
 ---
 
@@ -513,13 +513,13 @@ Assembles analysis + summaries into the final onboarding document.
 ### Priority 2: Integration Testing & Performance
 
 #### Priority 2a: Real Integration Tests
-**Status:** In progress
+**Status:** Complete
 - [x] Create `@pytest.mark.integration` tests with actual Ollama instance
 - [x] Create `@pytest.mark.requires_openai` tests (skipped without API key)
 - [x] Test full pipeline: analyze → summarize → generate guide
 - [x] Add live baseline performance test on sample project (`@pytest.mark.slow`)
-- [ ] Estimated effort: 6-8 hours
-- [ ] Success criteria: Real provider integration tested, performance baseline established
+- [x] Estimated effort: ~7 hours
+- [x] Success criteria: Real provider integration tested, performance baseline established
 
 #### Priority 2b: Context Optimization
 **Status:** Complete
@@ -535,18 +535,18 @@ Assembles analysis + summaries into the final onboarding document.
 ### Priority 3: Documentation & Finalization
 
 #### Priority 3a: MVP 2.5 Quality Documentation
-**Status:** Not started
-- [ ] Update USAGE.md with token cost visibility
-- [ ] Update CONFIGURATION.md with cost reporting options
-- [ ] Create PERFORMANCE.md with benchmarks
-- [ ] Estimated effort: 3 hours
+**Status:** Complete
+- [x] Update USAGE.md with token cost visibility
+- [x] Update CONFIGURATION.md with cost reporting options
+- [x] Create PERFORMANCE.md with benchmarks
+- [x] Estimated effort: ~3 hours
 
 #### Priority 3b: Edge Case Handling
-**Status:** Not started
-- [ ] Test with very large projects (1000+ files)
-- [ ] Test with unusual file encodings
-- [ ] Test with circular dependency chains
-- [ ] Estimated effort: 3-4 hours
+**Status:** Complete
+- [x] Test with very large projects (1000+ files)
+- [x] Test with unusual file encodings
+- [x] Test with circular dependency chains
+- [x] Estimated effort: ~3.5 hours
 
 ---
 
@@ -554,26 +554,26 @@ Assembles analysis + summaries into the final onboarding document.
 
 **Goal:** Production-ready command-line tool.
 
-### Phase 3.1: Template Customization ⏳
-- [ ] Implement template loading from `.devwayfinder/template.yaml`
-- [ ] Support section ordering, inclusion/exclusion
-- [ ] Template inheritance (project template extends default)
-- [ ] Document template format and customization options
-- [ ] Write template tests
+### Phase 3.1: Template Customization ✅
+- [x] Implement template loading from `.devwayfinder/template.yaml`
+- [x] Support section ordering, inclusion/exclusion
+- [x] Template inheritance (project template extends default)
+- [x] Document template format and customization options
+- [x] Write template tests
 
-### Phase 3.2: PyPI Package Publication ⏳
-- [ ] Finalize package metadata in pyproject.toml (description, classifiers, URLs)
-- [ ] Build and test sdist and wheel distributions
+### Phase 3.2: PyPI Package Publication 🔄
+- [x] Finalize package metadata in pyproject.toml (description, classifiers, URLs)
+- [x] Build and test sdist and wheel distributions
 - [ ] Publish to PyPI: `pip install devwayfinder`
 - [ ] Verify installation works on clean environments (Windows, macOS, Linux)
-- [ ] Write installation verification tests
+- [x] Write installation verification tests
 
-### Phase 3.3: Benchmark Suite & Optimization ⏳
-- [ ] Create benchmark project fixtures (small: 10 files, medium: 100 files, large: 1000 files)
-- [ ] Implement benchmark runner (measure analysis time, memory usage, LLM calls)
-- [ ] Profile analysis pipeline on large projects (identify bottlenecks)
+### Phase 3.3: Benchmark Suite & Optimization 🔄
+- [x] Create benchmark project fixtures (small: 10 files, medium: 100 files, large: 1000 files)
+- [x] Implement benchmark runner (measure analysis time, memory usage, LLM calls)
+- [x] Profile analysis pipeline on large projects (identify bottlenecks)
 - [ ] Memory optimization for repos with many large files
-- [ ] Publish benchmark results in documentation
+- [x] Publish benchmark results in documentation
 
 ---
 
@@ -627,20 +627,16 @@ A feature/phase is considered complete when:
 
 Update this section as phases complete:
 
-### MVP 1 Progress
+### Current Progress Snapshot
 
-| Phase | Status | Notes |
+| Stream | Status | Notes |
 |-------|--------|-------|
-| 1.1 Project Setup | ✅ Complete | Structure, deps, tooling, docs |
-| 1.2 Core Domain Models | ✅ Complete | Module, Project, Graph, Guide, Protocols, Exceptions — all tested |
-| 1.3 LLM Providers | ✅ Complete | Ollama, OpenAI-compat, OpenAI, Heuristic — factory + tests. Missing: retry logic |
-| 1.4 Configuration | 🔄 In Progress | Provider config done; full config loader needed |
-| 1.5 Code Analyzer | ✅ Complete | BaseAnalyzer, StructureAnalyzer, RegexAnalyzer, PythonASTAnalyzer, GraphBuilder — 36 tests |
-| 1.6 Summarization | 🔲 Not Started | **Next priority** — connect analyzers to LLM |
-| 1.7 Guide Generator | 🔲 Not Started | Depends on 1.5, 1.6 |
-| 1.8 CLI Interface | 🔄 In Progress | test-model done; analyze/generate stubs |
-| 1.9 Integration Testing | 🔲 Not Started | Depends on 1.5-1.8 |
-| 1.10 Documentation | 🔲 Not Started | Final pass after implementation |
+| MVP 1 | ✅ Complete | Core analysis, summarization, generation, CLI, and baseline testing |
+| MVP 2 | ✅ Complete | Metrics, git analyzer, caching, start-here, mermaid, templates |
+| MVP 2.5 | ✅ Complete | Coverage uplift, token/cost transparency, integration tests, edge-case hardening, docs |
+| MVP 3.1 | ✅ Complete | Guide template loading, inheritance, ordering, inclusion/exclusion, tests |
+| MVP 3.2 | 🔄 In Progress | Packaging metadata + dist build + packaging tests complete; PyPI publish pending |
+| MVP 3.3 | 🔄 In Progress | Benchmark fixtures/runner/results published; further memory optimization pending |
 
 **Status Legend:**
 - 🔲 Not Started

@@ -1,357 +1,151 @@
-# DevWayfinder — Configuration Reference
+# DevWayfinder - Configuration Reference
 
-> **Version:** 1.0.0  
+> **Version:** 1.1.0  
 > **Status:** Active  
-> **Last Updated:** 2026-03-24  
+> **Last Updated:** 2026-04-01  
 > **Authoritative Source:** This document is the single source of truth for configuration options.
 
 ---
 
 ## 1. Overview
 
-Current runtime configuration (MVP 2) is resolved with the following precedence (highest to lowest):
+DevWayfinder currently supports two runtime configuration surfaces:
 
-1. **CLI arguments** — e.g. `--model-provider openai_compat`
-2. **Environment variables** — e.g. `DEVWAYFINDER_MODEL_PROVIDER=openai_compat`
-3. **Built-in provider defaults**
+1. **Provider runtime settings** (CLI + environment variables)
+2. **Guide layout templates** via `.devwayfinder/template.yaml`
 
-`devwayfinder init` scaffolds `.devwayfinder/config.yaml` templates, but full project/user YAML config loading hierarchy is planned work (see [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md), Phase 1.4 follow-up).
-
----
-
-## 2. Configuration File Format
-
-Configuration files use YAML format:
-
-```yaml
-# .devwayfinder/config.yaml
-
-model:
-  provider: openai_compat
-  model_name: null
-  base_url: http://127.0.0.1:5000/v1
-  api_key: local
-  timeout: 120
-  max_tokens: 512
-  temperature: 0.3
-
-analysis:
-  include_patterns:
-    - "**/*.py"
-    - "**/*.ts"
-    - "**/*.js"
-  exclude_patterns:
-    - "**/node_modules/**"
-    - "**/.venv/**"
-    - "**/dist/**"
-    - "**/build/**"
-    - "**/__pycache__/**"
-  max_file_size: 100000
-  enable_git_analysis: true
-  enable_metrics: true
-  analysis_layers:
-    - ast
-    - regex
-    - llm
-
-output:
-  format: markdown
-  output_path: null
-  include_graph: true
-  include_metrics: true
-  graph_format: mermaid
-
-cache:
-  enabled: true
-  directory: .devwayfinder/cache
-  ttl_days: 30
-
-logging:
-  level: INFO
-  file: null
-```
+`devwayfinder init` still scaffolds `.devwayfinder/config.yaml`, but full runtime loading of that file hierarchy remains planned follow-up work.
 
 ---
 
-## 3. Configuration Sections
+## 2. Runtime Precedence
 
-### 3.1 Model Configuration (Runtime Supported)
+### 2.1 Provider Runtime Settings
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `model.provider` | `string` | `openai_compat` | LLM provider: `openai_compat`, `openai`, `ollama`, `heuristic` |
-| `model.model_name` | `string \| null` | `null` | Model identifier; required for official OpenAI |
-| `model.base_url` | `string` | `http://127.0.0.1:5000/v1` | API endpoint URL |
-| `model.api_key` | `string \| null` | `local` | API key or local placeholder token |
-| `model.timeout` | `int` | `120` | Request timeout in seconds |
-| `model.max_tokens` | `int` | `512` | Maximum tokens per response |
-| `model.temperature` | `float` | `0.3` | Sampling temperature (0.0-1.0) |
+For provider settings, precedence is (highest to lowest):
 
-### 3.2 Analysis Configuration (Template/Planned)
+1. CLI options (for example `--model-provider`, `--model-name`, `--base-url`)
+2. Environment variables (for example `DEVWAYFINDER_MODEL_PROVIDER`)
+3. Built-in defaults
 
-Analysis and output keys in generated templates are intended for upcoming config-loader integration. Current runtime behavior for analysis/output is primarily controlled by CLI flags and built-in defaults.
+### 2.2 Guide Template Selection
 
+Guide template selection order is:
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `analysis.include_patterns` | `list[str]` | `["**/*.py"]` | Glob patterns for files to analyze |
-| `analysis.exclude_patterns` | `list[str]` | See defaults | Glob patterns to exclude |
-| `analysis.max_file_size` | `int` | `100000` | Max file size in bytes |
-| `analysis.enable_git_analysis` | `bool` | `true` | Analyze git history |
-| `analysis.enable_metrics` | `bool` | `true` | Compute complexity metrics |
-| `analysis.analysis_layers` | `list[str]` | `[ast, regex, llm]` | Analysis methods in priority order. `tree_sitter` available as optional extra. |
-
-### 3.3 Output Configuration (Template/Planned)
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `output.format` | `string` | `markdown` | Output format: `markdown`, `json` |
-| `output.output_path` | `string` | `null` | Output file path (null = stdout) |
-| `output.include_graph` | `bool` | `true` | Include dependency graph |
-| `output.include_metrics` | `bool` | `true` | Include complexity metrics |
-| `output.graph_format` | `string` | `mermaid` | Graph format: `mermaid`, `ascii`, `dot` |
-
-### 3.4 Cache Configuration (Partially Runtime)
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `cache.enabled` | `bool` | `true` | Enable caching |
-| `cache.directory` | `string` | `.devwayfinder/cache` | Cache directory path |
-| `cache.ttl_days` | `int` | `30` | Cache entry time-to-live |
-
-### 3.5 Logging Configuration (Planned)
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `logging.level` | `string` | `INFO` | Log level: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
-| `logging.file` | `string` | `null` | Log file path (null = stderr) |
+1. `--guide-template <path>` (if provided)
+2. `.devwayfinder/template.yaml` in the analyzed project
+3. Built-in `default` template
 
 ---
 
-## 4. Environment Variables
+## 3. Provider Configuration
 
-The following environment variables are currently consumed at runtime by provider configuration:
+### 3.1 Supported Provider Keys
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `provider` | `string` | `openai_compat` | Provider name: `openai_compat`, `openai`, `ollama`, `heuristic` |
+| `model_name` | `string | null` | `null` | Provider-specific model ID |
+| `base_url` | `string | null` | provider default | Endpoint URL |
+| `api_key` | `string | null` | `null` | API key token |
+| `timeout` | `float` | `120.0` | Request timeout in seconds |
+| `max_tokens` | `int` | `512` | Max output tokens per summary |
+| `temperature` | `float` | `0.3` | Sampling temperature |
+
+### 3.2 Environment Variables
 
 ```bash
-# Format: DEVWAYFINDER_{SECTION}_{KEY} (uppercase, underscores)
-
-# Model configuration
 DEVWAYFINDER_MODEL_PROVIDER=openai_compat
 DEVWAYFINDER_MODEL_NAME=
 DEVWAYFINDER_MODEL_BASE_URL=http://127.0.0.1:5000/v1
-DEVWAYFINDER_API_KEY=local
-
+DEVWAYFINDER_API_KEY=
 DEVWAYFINDER_MODEL_TIMEOUT=120
 DEVWAYFINDER_MODEL_MAX_TOKENS=512
 DEVWAYFINDER_MODEL_TEMPERATURE=0.3
 ```
 
----
-
-## 5. CLI Arguments
-
-CLI arguments override all other configuration:
+### 3.3 CLI Overrides
 
 ```bash
 devwayfinder generate ./project \
   --model-provider openai_compat \
+  --model-name mistral \
   --base-url http://127.0.0.1:5000/v1 \
-  --no-llm \
-  --output ./ONBOARDING.md \
-  --no-graph \
-  --no-metrics \
-  --verbose
+  --api-key local
 ```
 
 ---
 
-## 6. Default Exclude Patterns
+## 4. Guide Template Configuration
 
-The following patterns are excluded by default:
+Guide templates control section order, inclusion/exclusion, and section title overrides.
 
-```yaml
-exclude_patterns:
-  # Dependencies
-  - "**/node_modules/**"
-  - "**/.venv/**"
-  - "**/venv/**"
-  - "**/vendor/**"
-  
-  # Build outputs
-  - "**/dist/**"
-  - "**/build/**"
-  - "**/__pycache__/**"
-  - "**/*.egg-info/**"
-  
-  # IDE/editor
-  - "**/.idea/**"
-  - "**/.vscode/**"
-  
-  # Version control
-  - "**/.git/**"
-  
-  # Misc
-  - "**/.devwayfinder/**"
-  - "**/coverage/**"
+### 4.1 Template File Location
+
+Project default path:
+
+```text
+.devwayfinder/template.yaml
 ```
 
----
+Optional override:
 
-## 7. Templates
-
-### 7.1 Guide Templates
-
-Custom guide templates can be defined in `.devwayfinder/templates/`:
-
-```yaml
-# .devwayfinder/templates/guide.yaml
-name: "Custom Onboarding Guide"
-sections:
-  - type: overview
-    title: "Project Overview"
-    include_readme: true
-    
-  - type: architecture
-    title: "Architecture"
-    include_graph: true
-    
-  - type: modules
-    title: "Key Modules"
-    max_modules: 20
-    sort_by: connectivity  # connectivity | complexity | alphabetical
-    
-  - type: start_here
-    title: "Where to Start"
-    recommendations: 5
-    
-  - type: custom
-    title: "Getting Started"
-    content: |
-      ## Setup Instructions
-      1. Clone the repository
-      2. Run `pip install -e .`
-      3. ...
-```
-
-### 7.2 Template Discovery
-
-Templates are searched in order:
-1. `.devwayfinder/templates/` (project)
-2. `~/.devwayfinder/templates/` (user)
-3. Built-in templates
-
----
-
-## 8. Profiles (Planned)
-
-Named profile activation is a planned capability and is not currently exposed as a stable CLI/runtime feature.
-
-Pre-configured profiles for common use cases:
-
-```yaml
-# .devwayfinder/config.yaml
-
-# Use a predefined profile
-profile: slow-local
-
-# Or define custom profiles
-profiles:
-  slow-local:
-    model:
-      timeout: 300
-      max_tokens: 256
-    analysis:
-      enable_metrics: false
-      
-  thorough:
-    model:
-      max_tokens: 1024
-      temperature: 0.1
-    analysis:
-      enable_git_analysis: true
-      enable_metrics: true
-      
-  quick:
-    model:
-      provider: heuristic
-    analysis:
-      enable_git_analysis: false
-      enable_metrics: false
-```
-
-Activate a profile via CLI:
 ```bash
-devwayfinder generate ./project --profile thorough
+devwayfinder generate ./project --guide-template ./custom-template.yaml
 ```
+
+### 4.2 Template Schema
+
+```yaml
+name: custom-order
+extends: default  # default | compact
+
+sections:
+  - type: start_here
+    title: Read This First
+  - type: dependencies
+    enabled: false
+```
+
+### 4.3 Supported Section Types
+
+- `overview`
+- `architecture`
+- `modules`
+- `dependencies`
+- `start_here`
+
+### 4.4 Built-in Base Templates
+
+- `default`: Overview -> Architecture -> Modules -> Dependencies -> Start Here
+- `compact`: Overview -> Modules -> Start Here
+
+When using `extends`, listed `sections` are applied as overrides and reordered first; unspecified base sections are appended in base order.
 
 ---
 
-## 9. Validation (Planned)
+## 5. Cost and Token Visibility
 
-Dedicated `devwayfinder validate` command support is planned and not currently available in MVP 2.
+Cost and token reporting is currently **always enabled** in generation output:
 
-Validate configuration without running analysis:
+- Preflight estimate panel before generation
+- Post-run totals (`Tokens used`, `Cost (estimated)`)
 
-Planned validation scope:
-- Config file syntax
-- Model provider connectivity
-- Directory permissions
-- Pattern validity
+There is currently no separate toggle flag for cost visibility.
 
 ---
 
-## 10. Example Configurations
+## 6. Scaffolded Config File (`devwayfinder init`)
 
-### 10.1 Minimal Configuration
+`devwayfinder init` creates `.devwayfinder/config.yaml` templates for project types. This is useful for team conventions and future runtime config expansion, but most non-provider fields are not yet enforced at runtime.
 
-```yaml
-# Works with all defaults
-model:
-  provider: ollama
-```
+---
 
-### 10.2 Offline / Air-gapped Environment
+## 7. Known Follow-up Items
 
-```yaml
-model:
-  provider: heuristic
-  
-analysis:
-  enable_git_analysis: false
-  analysis_layers:
-    - ast
-    - regex
-```
+The following are intentionally pending and tracked in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md):
 
-### 10.3 Large Project
-
-```yaml
-model:
-  timeout: 300
-  max_tokens: 256    # Shorter summaries for speed
-  
-analysis:
-  max_file_size: 50000    # Smaller files only
-  exclude_patterns:
-    - "**/tests/**"
-    - "**/docs/**"
-    
-cache:
-  enabled: true
-  ttl_days: 7
-```
-
-### 10.4 TypeScript Project
-
-```yaml
-analysis:
-  include_patterns:
-    - "**/*.ts"
-    - "**/*.tsx"
-    - "**/*.js"
-    - "**/*.jsx"
-  exclude_patterns:
-    - "**/node_modules/**"
-    - "**/dist/**"
-    - "**/*.d.ts"    # Skip declaration files
-```
+- Full `DevWayfinderConfig` runtime loader hierarchy
+- User-level config merge (`~/.devwayfinder/...`)
+- Validation command for config files
+- Profile activation via CLI
