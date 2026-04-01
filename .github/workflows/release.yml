@@ -84,17 +84,15 @@ jobs:
 
           scripts = "Scripts" if os.name == "nt" else "bin"
           py_name = "python.exe" if os.name == "nt" else "python"
-          pip_name = "pip.exe" if os.name == "nt" else "pip"
 
           py = venv_dir / scripts / py_name
-          pip = venv_dir / scripts / pip_name
 
           wheels = sorted(pathlib.Path("dist").glob("devwayfinder-*.whl"))
           if not wheels:
               raise SystemExit("No wheel artifact found")
 
-            subprocess.check_call([str(py), "-m", "pip", "install", "--upgrade", "pip"])
-            subprocess.check_call([str(py), "-m", "pip", "install", str(wheels[-1])])
+          subprocess.check_call([str(py), "-m", "pip", "install", "--upgrade", "pip"])
+          subprocess.check_call([str(py), "-m", "pip", "install", str(wheels[-1])])
           subprocess.check_call([str(py), "-m", "devwayfinder", "version"])
           subprocess.check_call(
               [
