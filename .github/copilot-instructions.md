@@ -32,6 +32,12 @@ Before committing:
    - `.venv\\Scripts\\python.exe -m ruff format --check src tests`
 4. Run type checks:
    - `.venv\\Scripts\\python.exe -m mypy src`
+5. Run packaging and install smoke checks when CLI, release, or packaging behavior changes:
+   - `.venv\\Scripts\\python.exe -m pytest tests/test_packaging.py -q`
+   - `.venv\\Scripts\\python.exe -m pytest tests/test_cli.py -q`
+   - Verify the GitHub Actions smoke workflows on `ubuntu-latest`, `windows-latest`, and `macos-latest` when workflow logic changes.
+6. Run the full CI-like test suite for release-sensitive changes:
+   - `.venv\\Scripts\\python.exe -m pytest tests/ -v --cov=devwayfinder --cov-report=xml`
 
 Quality requirements:
 - Public functions must be typed.
@@ -70,6 +76,10 @@ Rules:
   - `.venv\\Scripts\\python.exe -m pytest tests/ -v --cov=devwayfinder --cov-report=xml`
 - Quick sanity:
   - `.venv\\Scripts\\python.exe -m pytest tests/test_cli.py -q`
+- Release and smoke validation:
+   - `.venv\\Scripts\\python.exe -m pytest tests/test_packaging.py -q`
+   - Re-run `.github/workflows/package-smoke.yml` after workflow changes.
+   - Re-run `.github/workflows/release.yml` with `publish_target` set to `none` or `testpypi` before production publish changes.
 
 ## 6. Current Priorities
 
