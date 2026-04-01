@@ -84,8 +84,8 @@ jobs:
           if not wheels:
               raise SystemExit("No wheel artifact available")
 
-          subprocess.check_call([str(pip), "install", "--upgrade", "pip"])
-          subprocess.check_call([str(pip), "install", str(wheels[-1])])
+            subprocess.check_call([str(py), "-m", "pip", "install", "--upgrade", "pip"])
+            subprocess.check_call([str(py), "-m", "pip", "install", str(wheels[-1])])
           subprocess.check_call([str(py), "-m", "devwayfinder", "version"])
           subprocess.check_call(
               [
