@@ -105,7 +105,7 @@ Analysis and output keys in generated templates are intended for upcoming config
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `output.format` | `string` | `markdown` | Output format: `markdown`, `html`, `json` |
+| `output.format` | `string` | `markdown` | Output format: `markdown`, `json` |
 | `output.output_path` | `string` | `null` | Output file path (null = stdout) |
 | `output.include_graph` | `bool` | `true` | Include dependency graph |
 | `output.include_metrics` | `bool` | `true` | Include complexity metrics |

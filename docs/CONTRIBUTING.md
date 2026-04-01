@@ -114,15 +114,6 @@ def analyze(data, opts):
     ...
 ```
 
-**TypeScript (VS Code Extension)**
-```typescript
-// ✅ GOOD: Strict types, discriminated unions
-interface ModuleNode {
-    type: 'module';
-    name: string;
-    path: string;
-    children: ModuleNode[];
-}
 
 interface DependencyEdge {
     type: 'dependency';
@@ -241,7 +232,6 @@ Every component must be testable in isolation.
 Adding a new language analyzer should require:
 1. Implementing the `LanguageAnalyzer` interface
 2. Registering in the analyzer factory
-3. Optionally adding Tree-sitter grammar
 
 **No changes to existing code.** Open/Closed Principle.
 
@@ -249,7 +239,6 @@ Adding a new language analyzer should require:
 
 The system must work at various capability levels:
 - Without LLM: Use heuristic summaries
-- Without Tree-sitter: Use regex-based parsing  
 - Without git: Skip change frequency analysis
 - Offline: Use cached summaries
 
@@ -258,7 +247,7 @@ The system must work at various capability levels:
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     PRESENTATION LAYER                          │
-│   CLI Interface, VS Code Extension UI, Markdown Export          │
+│   CLI Interface, Markdown Export          │
 ├─────────────────────────────────────────────────────────────────┤
 │                     APPLICATION LAYER                            │
 │   Guide orchestration, caching, incremental updates             │
@@ -267,7 +256,7 @@ The system must work at various capability levels:
 │   Analyzers, Summarizers, Graph builders, Metrics               │
 ├─────────────────────────────────────────────────────────────────┤
 │                     INFRASTRUCTURE LAYER                         │
-│   LLM providers, File system, Git client, Tree-sitter           │
+│   LLM providers, File system, Git client           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 

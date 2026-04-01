@@ -16,10 +16,10 @@ This document outlines the phased implementation plan for DevWayfinder. Developm
 Based on analysis of parsing strategy requirements and project management constraints, DevWayfinder follows a **hybrid evolutionary architecture**:
 
 1. **MVP 1 (Core):** Universal heuristic core — Python AST + regex heuristics + LLM/heuristic fallback. Stable `Analyzer` protocol interface with plugin hooks for future extensions.
-2. **MVP 2 (Enhancement):** Multi-language support via regex analyzers, git integration, metrics. Tree-sitter as optional enhancement only.
-3. **MVP 3+ (Scaling):** Plugin registry, community analyzers, VS Code extension. Tree-sitter introduced where measurable value is confirmed.
+2. **MVP 2 (Enhancement):** Multi-language support via regex analyzers, git integration, metrics.
+3. **MVP 3 (Distribution):** Refined CLI, complete generation formatting, benchmarks, and PyPI distribution.
 
-This approach prioritizes **shipping working software** over parser accuracy perfection. Regex + AST + LLM is "good enough" for onboarding use cases, and architecture allows progressive enhancement without rework.
+This approach prioritizes **shipping working software** over parser accuracy perfection. Regex + AST + LLM is "good enough" for onboarding use cases, and architecture allows generating simple and readable documents directly into `./docs/guides/` or similar folders without unnecessary complexity.
 
 ---
 
@@ -90,63 +90,18 @@ This means each phase completes with a deployable artifact that can be demoed an
 - [x] Dependency graph rendered as Mermaid diagram
 - [x] Incremental re-analysis on file change (via caching layer)
 
-### 🔲 MVP 3: VS Code Extension & Plugin System
-**Goal:** Bring DevWayfinder into the IDE and enable community extensions
+### 🔲 MVP 3: Distribution & Production
+**Goal:** Production-ready command-line tool for public release. Documents are generated simply as Markdown files in a separate `./docs/guides/` folder.
 
-**Timeline:** Week 8-10
-
-**Deliverables:**
-- VS Code extension package
-- Module tree view panel (native VS Code TreeView API)
-- Dependency graph display (Mermaid diagrams in Markdown preview)
-- "Generate Guide" command
-- Status bar integration
-- Analyzer plugin registry with dynamic loading
-- Multi-format export (MD, HTML)
-- Template customization
-
-**Success Criteria:**
-- [ ] Extension installable from VSIX
-- [ ] Tree view shows module structure
-- [ ] Dependency graph viewable as Mermaid in Markdown preview
-- [ ] Guide generation works from command palette
-- [ ] New language analyzers can be added via plugin protocol
-
-### 🔲 MVP 4: Interactive Features & Guide Catalog
-**Goal:** Make the extension a live onboarding companion with a dedicated guide management experience
-
-**Timeline:** Week 11-13
+**Timeline:** Week 10-12
 
 **Deliverables:**
-- Guide catalog with sidebar preview (Copilot Chat-style navigation)
-- File watcher for live updates
-- "Explain this module" context menu
-- Custom onboarding checklists
-- PDF export
-- Extended language regex patterns (additional ecosystems on demand)
-
-**Success Criteria:**
-- [ ] Guide catalog shows list of guides in sidebar panel
-- [ ] Guides openable as raw Markdown for editing, with sidebar preview
-- [ ] Live re-analysis on save
-- [ ] Context menu commands work
-- [ ] Checklists editable and saveable
-
-### 🔲 MVP 5: Distribution & Production
-**Goal:** Production-ready tool for public release
-
-**Timeline:** Week 14-16
-
-**Deliverables:**
-- VS Code marketplace publication
 - PyPI package publication
 - Complete documentation in repository
 - Benchmark suite
 - Performance optimization
-- Tree-sitter integration for high-demand languages (conditional — only if user feedback warrants)
 
 **Success Criteria:**
-- [ ] Available on VS Code Marketplace
 - [ ] Installable via `pip install devwayfinder`
 - [ ] Documentation complete and verified
 - [ ] Performance benchmarks published
@@ -480,7 +435,7 @@ Assembles analysis + summaries into the final onboarding document.
 
 ## 6. MVP 2.5 Detailed Plan: Optimization before MVP 3 Extension
 
-**Goal:** Improve code quality, performance, token efficiency, and error handling before extending to VS Code extension ecosystem in MVP 3.
+**Goal:** Improve code quality, performance, token efficiency, and error handling for the final production release in MVP 3.
 
 **Timeline:** Week 7.5-9 (parallel track with completion of MVP 2)
 
@@ -595,217 +550,44 @@ Assembles analysis + summaries into the final onboarding document.
 
 ---
 
-## 7. MVP 3 Detailed Plan: VS Code Extension & Plugin System
+## 7. MVP 3 Detailed Plan: Distribution & Production
 
-### Phase 3.1: Analyzer Plugin Registry ⏳
-- [ ] Design plugin discovery mechanism (entry points or directory scan)
-- [ ] Implement `PluginManager` class for dynamic analyzer loading
-- [ ] Define plugin manifest format (name, version, supported languages, entry point)
-- [ ] Implement `register_analyzer()` and `unregister_analyzer()` API
-- [ ] Create plugin development guide in documentation
-- [ ] Write plugin system tests (load, unload, conflict resolution)
+**Goal:** Production-ready command-line tool.
 
-### Phase 3.2: VS Code Extension Scaffold ⏳
-- [ ] Set up extension project structure (TypeScript, webpack/esbuild bundler)
-- [ ] Configure `package.json` with extension metadata and activation events
-- [ ] Implement extension activation/deactivation lifecycle
-- [ ] Create communication bridge: Extension ↔ devwayfinder CLI (subprocess or LSP)
-- [ ] Define VS Code command registrations
-- [ ] Write extension scaffold tests
-
-### Phase 3.3: Module Tree View Panel ⏳
-- [ ] Implement `TreeDataProvider` for project module hierarchy
-- [ ] Display modules with icons (file, directory, package, entry point)
-- [ ] Show import/export counts per module
-- [ ] Click-to-navigate: open file at module location
-- [ ] Refresh on file system changes
-- [ ] Write tree view data provider tests
-
-### Phase 3.4: Dependency Graph Display ⏳
-Graph visualization is delivered through Mermaid diagrams embedded in generated Markdown documents, viewed via VS Code's built-in Markdown preview. No custom webview is required.
-
-- [ ] Enhance Mermaid diagram generator (from MVP 2) with richer formatting
-- [ ] Add module type annotations in graph nodes (entry point, package, etc.)
-- [ ] Implement subgraph clustering for large projects (by package/directory)
-- [ ] Generate standalone graph Markdown file for quick preview
-- [ ] Add "DevWayfinder: Show Dependency Graph" command (opens Mermaid Markdown in preview)
-- [ ] Write graph display tests
-
-> **⚠️ Design Note:** Interactive graph exploration (zoom, pan, click-to-navigate within a custom panel) requires a VS Code webview with a JS rendering library. This is deferred as a potential future enhancement. If the Mermaid-in-Markdown approach proves insufficient for large projects, a custom webview phase should be planned separately.
-
-### Phase 3.5: Extension Commands & Integration ⏳
-- [ ] Implement "DevWayfinder: Generate Guide" command (command palette)
-- [ ] Implement "DevWayfinder: Analyze Project" command
-- [ ] Add status bar item showing analysis status
-- [ ] Multi-format export from extension (Markdown, HTML via CLI)
-- [ ] Error handling and notification for missing LLM/config issues
-- [ ] Write command integration tests
-
-### Phase 3.6: Template Customization ⏳
+### Phase 3.1: Template Customization ⏳
 - [ ] Implement template loading from `.devwayfinder/template.yaml`
 - [ ] Support section ordering, inclusion/exclusion
 - [ ] Template inheritance (project template extends default)
 - [ ] Document template format and customization options
 - [ ] Write template tests
 
----
-
-## 7. MVP 4 Detailed Plan: Interactive Features & Polish
-
-### Phase 4.1: Guide Catalog — Storage & Management ⏳
-
-Guides are stored **independently from the analyzed project**, in a global location such as `~/.devwayfinder/guides/`. Each guide is a plain Markdown file that the user can open, edit, and version-control separately.
-
-- [ ] Implement global guide storage (`~/.devwayfinder/guides/<project-slug>/`)
-- [ ] Support saving multiple guides per project (by date, branch, or custom name)
-- [ ] Each guide is a self-contained `.md` file editable in any Markdown editor
-- [ ] Implement guide metadata sidecar (`.meta.json` per guide: creation date, project path, branch, user annotations)
-- [ ] Persist user annotations across re-generation via metadata sidecar
-- [ ] CLI commands: `devwayfinder guides list`, `devwayfinder guides open <name>`, `devwayfinder guides diff <a> <b>`
-- [ ] Guide diffing: leverage VS Code built-in diff editor (`vscode.diff` command) to compare two guides
-- [ ] Write guide catalog model, storage, and CLI tests
-
-### Phase 4.1b: Guide Catalog — VS Code Sidebar UI ⏳
-
-The guide catalog appears as a dedicated panel in the VS Code sidebar, similar to the Copilot Chat conversation history. Users can browse, preview, open, and manage guides from the sidebar without leaving the editor.
-
-**UX flow:**
-1. Sidebar tree view lists all projects → guides per project (sorted by date/name)
-2. Clicking a guide opens a **live Markdown preview** in the sidebar panel
-3. A toolbar button opens the raw `.md` file in the editor for direct editing
-4. "Back to catalog" navigation returns to the guide directory listing
-5. Context menu actions: rename, delete, duplicate, diff with another guide
-6. Badge indicator shows guides that are stale (project changed since generation)
-
-- [ ] Implement `GuideCatalogTreeDataProvider` for sidebar tree view
-- [ ] Implement Markdown preview panel (using VS Code `WebviewView` with built-in Markdown rendering)
-- [ ] Implement "Open raw file" command (opens `.md` in standard editor tab)
-- [ ] Implement back-navigation from preview to catalog list
-- [ ] Implement context menu actions (rename, delete, duplicate, diff)
-- [ ] Implement stale-guide detection (compare guide timestamp vs. project last-modified)
-- [ ] Write sidebar UI integration tests
-
-> **Design note:** The sidebar preview uses VS Code's native Markdown rendering via a lightweight webview panel (not a full browser-based UI). If the VS Code Extension API imposes limitations on inline Markdown rendering in sidebar panels, an alternative approach is to open the preview as a standard Markdown Preview tab and keep only the tree-view navigation in the sidebar.
-
-### Phase 4.2: File Watcher & Live Updates ⏳
-- [ ] Implement VS Code file system watcher integration
-- [ ] Detect file changes and trigger incremental re-analysis
-- [ ] Update tree view and graph view in real-time
-- [ ] Debounce rapid changes (configurable interval)
-- [ ] Show "outdated" indicator when guide is stale
-- [ ] Write file watcher tests
-
-### Phase 4.3: Context Menu & Quick Actions ⏳
-- [ ] "Explain this module" — right-click on file/folder → LLM-generated summary displayed in editor panel
-- [ ] "Show dependencies" — right-click → open generated dependency Markdown focused on selected module
-- [ ] "Show dependents" — what modules depend on this file (output to editor panel)
-- [ ] "Navigate to entry point" — jump to nearest entry point
-- [ ] Write context menu command tests
-
-### Phase 4.4: Custom Onboarding Checklists ⏳
-- [ ] Define checklist schema (items, progress, categories)
-- [ ] Generate default checklists from analysis (e.g., "Read core module", "Run tests")
-- [ ] Allow users to create and edit custom checklists
-- [ ] Checklist progress persistence in `.devwayfinder/checklists/`
-- [ ] Display checklists in dedicated VS Code panel
-- [ ] Write checklist model and persistence tests
-
-### Phase 4.5: Community Regex Patterns ⏳
-- [ ] Define pattern contribution format (YAML/JSON schema for import/export regex)
-- [ ] Implement pattern loader from user-defined pattern files
-- [ ] Bundle curated community patterns for less common languages (Elixir, Kotlin, Swift, etc.)
-- [ ] CLI command: `devwayfinder patterns list`, `devwayfinder patterns validate <file>`
-- [ ] Write pattern loader and validation tests
-
-### Phase 4.6: PDF Export ⏳
-- [ ] Implement PDF renderer (using weasyprint or similar)
-- [ ] Support custom styling/themes for PDF output
-- [ ] Include dependency graph as embedded image
-- [ ] Table of contents with page numbers
-- [ ] Write PDF generation tests
-
----
-
-## 8. MVP 5 Detailed Plan: Distribution & Production
-
-### Phase 5.1: PyPI Package Publication ⏳
+### Phase 3.2: PyPI Package Publication ⏳
 - [ ] Finalize package metadata in pyproject.toml (description, classifiers, URLs)
-- [ ] Create MANIFEST.in for source distribution
 - [ ] Build and test sdist and wheel distributions
-- [ ] Publish to TestPyPI for validation
 - [ ] Publish to PyPI: `pip install devwayfinder`
 - [ ] Verify installation works on clean environments (Windows, macOS, Linux)
 - [ ] Write installation verification tests
 
-### Phase 5.2: VS Code Marketplace Publication ⏳
-- [ ] Create `.vsix` package from extension
-- [ ] Write marketplace listing (description, screenshots, demo GIF)
-- [ ] Submit to VS Code Marketplace for review
-- [ ] Set up automated extension builds (CI/CD)
-- [ ] Write marketplace smoke tests (install, activate, basic command)
-
-### Phase 5.3: Documentation & Guides ⏳
-- [ ] Finalize all authoritative documents (ARCHITECTURE, REQUIREMENTS, USAGE, etc.)
-- [ ] Add getting started tutorial with step-by-step examples in USAGE.md
-- [ ] Add configuration reference (auto-generated from Pydantic schemas) in CONFIGURATION.md
-- [ ] Add plugin development guide in CONTRIBUTING.md
-- [ ] Create README badges and shields for PyPI/Marketplace versions
-- [ ] Write documentation completeness validation
-
-### Phase 5.4: Benchmark Suite ⏳
+### Phase 3.3: Benchmark Suite & Optimization ⏳
 - [ ] Create benchmark project fixtures (small: 10 files, medium: 100 files, large: 1000 files)
 - [ ] Implement benchmark runner (measure analysis time, memory usage, LLM calls)
-- [ ] Establish baseline performance metrics
-- [ ] Compare analysis accuracy: AST vs regex vs Tree-sitter on same projects
-- [ ] Publish benchmark results in documentation
-- [ ] Set up CI benchmark regression checking
-
-### Phase 5.5: Performance Optimization ⏳
 - [ ] Profile analysis pipeline on large projects (identify bottlenecks)
-- [ ] Implement parallel file analysis (asyncio or multiprocessing)
-- [ ] Optimize dependency graph construction for large modules
-- [ ] Implement streaming LLM summarization (process as responses arrive)
 - [ ] Memory optimization for repos with many large files
-- [ ] Write performance regression tests
-
-### Phase 5.6: Tree-sitter for High-Demand Languages (Conditional) ⏳
-> **Prerequisite:** User feedback and benchmark data confirm Tree-sitter delivers measurable accuracy improvement over regex for specific languages.
-- [ ] Evaluate user feedback and benchmark accuracy gaps
-- [ ] Implement Tree-sitter analyzers only for languages where regex accuracy < 85%
-- [ ] Maintain regex fallback for all languages
-- [ ] Document accuracy comparison per language
-- [ ] Write Tree-sitter accuracy comparison tests
+- [ ] Publish benchmark results in documentation
 
 ---
 
-## 9. External Comparative Assessment Inputs (2026-03-18)
-
-The external "Architext vs DevWayfinder" analysis was reviewed and distilled into planning-relevant inputs.
-
-### 9.1 Confirmed Positioning
+## 8. External Comparative Assessment Inputs (2026-03-18)
 
 - DevWayfinder is treated as a **sister/spiritual-successor project** in the same ecosystem, not a direct fork.
-- Product focus remains **developer onboarding UX** (CLI-first, extension next), while deeper agent-centric semantic intelligence is out of current scope.
+- Product focus remains **developer onboarding UX** (CLI-first), while deeper agent-centric semantic intelligence is out of current scope.
 
-### 9.2 Confirmed Strengths to Preserve
-
+### 8.1 Confirmed Strengths to Preserve
 - **Low overhead analysis path** (AST/regex + heuristic fallback)
 - **Offline-capable workflow** (no LLM required for baseline utility)
 - **Fast onboarding output generation** over heavyweight indexing pipelines
 
-### 9.3 Execution Risks to Track in Upcoming MVPs
-
-- MVP 3 delivery risk: VS Code extension integration complexity
-- MVP 3-4 delivery risk: plugin architecture cohesion and maintainability
-- MVP 5 delivery risk: distribution/packaging quality gates across platforms
-
-### 9.4 Roadmap Actions
-
-- Keep MVP 3 scope minimal and demonstrable first (installable VSIX, generate/analyze command bridge).
-- Keep plugin APIs narrow initially (single analyzer registration path) before broad extension points.
-- Preserve heuristic-mode quality as a release criterion in all upcoming MVPs.
-
-## 10. Technical Debt Register
+## 9. Technical Debt Register
 
 | ID | Description | Severity | Target |
 |----|-------------|----------|--------|
@@ -816,19 +598,17 @@ The external "Architext vs DevWayfinder" analysis was reviewed and distilled int
 
 ---
 
-## 11. Risk Register
+## 10. Risk Register
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
 | 7B models produce low-quality summaries | Medium | High | Focused context (signature+docstring only), heuristic fallback |
 | Regex heuristics miss complex import patterns | Medium | Low | Python AST as primary; regex is fallback only |
 | Performance on large repos | Medium | Medium | Incremental analysis, caching (MVP 2) |
-| VS Code extension API complexity | Medium | Medium | Deferred to MVP 3, start with minimal features |
-| Tree-sitter grammars maintenance burden | Low | Low | Deferred to post-MVP; only if user demand confirmed |
 
 ---
 
-## 12. Definition of Done
+## 11. Definition of Done
 
 A feature/phase is considered complete when:
 

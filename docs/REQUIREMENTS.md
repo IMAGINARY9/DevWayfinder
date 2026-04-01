@@ -51,7 +51,6 @@ DevWayfinder is an AI-powered developer onboarding generator that transforms rep
 | FR-021 | Support TypeScript/JavaScript import/export extraction | Should | 2 |
 | FR-022 | Support generic file structure analysis (any language) | Must | 1 |
 | FR-023 | Plugin system for adding new language analyzers | Should | 3 |
-| FR-024 | Tree-sitter integration for accurate parsing (optional enhancement) | Could | 3 |
 | FR-025 | Fallback to regex/LLM for unsupported languages | Must | 1 |
 
 ### 2.3 Summarization Engine
@@ -74,9 +73,7 @@ DevWayfinder is an AI-powered developer onboarding generator that transforms rep
 | FR-040 | Generate Markdown onboarding document | Must | 1 |
 | FR-041 | Include dependency graph visualization (Mermaid/ASCII) | Should | 2 |
 | FR-042 | Generate module-by-module reference guide | Must | 1 |
-| FR-043 | Export to multiple formats (MD, HTML, PDF) | Could | 3 |
 | FR-044 | Include complexity metrics per module | Should | 2 |
-| FR-045 | Generate interactive HTML with collapsible sections | Won't | — |
 
 ### 2.5 CLI Interface
 
@@ -91,25 +88,12 @@ DevWayfinder is an AI-powered developer onboarding generator that transforms rep
 | FR-056 | Rich progress display with status indicators | Should | 2 |
 | FR-057 | `devwayfinder test-model` — verify LLM connection | Must | 1 |
 
-### 2.6 VS Code Extension (Future MVP)
-
-| ID | Requirement | Priority | MVP |
-|----|-------------|----------|-----|
-| FR-060 | Tree view showing module structure | Should | 3 |
-| FR-061 | Graph panel with navigable dependency visualization | Should | 3 |
-| FR-062 | Hover summaries for files/modules | Could | 3 |
-| FR-063 | "Explain this module" context menu command | Could | 3 |
-| FR-064 | Guides catalog with editable notes | Could | 4 |
-| FR-065 | File watcher for incremental re-analysis | Could | 4 |
-| FR-066 | Export guide from extension | Could | 3 |
-
-### 2.7 Template & Configuration System
+### 2.6 Template & Configuration System
 
 | ID | Requirement | Priority | MVP |
 |----|-------------|----------|-----|
 | FR-070 | Support `.devwayfinder/config.yaml` for project settings | Must | 1 |
 | FR-071 | Support `.devwayfinder/template.yaml` for guide structure | Should | 2 |
-| FR-072 | Allow custom onboarding checklists | Should | 2 |
 | FR-073 | User-level config in `~/.devwayfinder/` | Should | 2 |
 | FR-074 | Template inheritance and overrides | Could | 3 |
 
@@ -210,11 +194,9 @@ DevWayfinder is an AI-powered developer onboarding generator that transforms rep
 
 ### 5.3 MVP 3 Acceptance
 
-- [ ] Basic VS Code extension functional
-- [ ] Dependency graph visualization
-- [ ] Multiple export formats
-- [ ] Template customization
-
+- [ ] Command-line tool is fully production-ready
+- [ ] Distribution on PyPI complete
+- [ ] Performance benchmarks published
 ---
 
 ## 6. Out of Scope
@@ -226,7 +208,7 @@ The following are explicitly **not** in scope for this project:
 - Supporting every programming language from day one
 - Interactive code generation
 - Code modification or refactoring suggestions
-- IDE plugins beyond VS Code
+- IDE plugins and extensions
 
 ---
 
@@ -238,8 +220,6 @@ The following are explicitly **not** in scope for this project:
 |------------|---------|----------|
 | LLM (Ollama/API) | Natural language summaries | Yes (degraded mode without) |
 | Git | Change history analysis | No (optional features) |
-| Tree-sitter | Accurate parsing | No (fallback to regex) |
-| Node.js | VS Code extension | No (extension only) |
 
 ### 7.2 Python Dependencies
 
@@ -263,14 +243,13 @@ The following are explicitly **not** in scope for this project:
 
 **Decision:** Adopt a hybrid approach — universal heuristic/AST core with well-defined interface hooks for future specialized parsers.
 
-**Context:** Analysis of parser strategy requirements revealed a scope creep risk with Tree-sitter integration. Each new language grammar constitutes a sub-project with ongoing maintenance burden. For an onboarding tool, the accuracy of regex + Python AST + LLM summaries is sufficient to deliver value.
+**Context:** Analysis of parser strategy requirements revealed a scope creep risk with complex parser integrations. For an onboarding tool, the accuracy of regex + Python AST + LLM summaries is sufficient to deliver value.
 
 **Approach (3-phase evolutionary architecture):**
 1. **MVP 1 (Core):** Python AST + regex heuristics + LLM fallback + basic heuristics. Define stable `Analyzer` protocol interface with plugin hooks.
-2. **MVP 2-3 (Enhancement):** Add specialized analyzers (TypeScript regex, git history). Tree-sitter as optional enhancement, not a requirement.
-3. **MVP 4+ (Scaling):** Full plugin registry, community language analyzers, Tree-sitter where it delivers measurable value.
+2. **MVP 2-3 (Enhancement):** Add specialized analyzers (TypeScript regex, git history). 
 
-**Rationale:** Regex + LLM produces 'good enough' analysis for onboarding use cases. Tree-sitter investment deferred until user feedback confirms demand for higher-accuracy parsing.
+**Rationale:** Regex + LLM produces 'good enough' analysis for onboarding use cases. Complex parsers are excluded to maintain simplicity.
 
 ---
 
@@ -287,7 +266,6 @@ The external "Architext vs DevWayfinder" comparative assessment was reviewed to 
 
 - Keep **NFR-020 (zero-config baseline)** and **NFR-011 (LLM fallback)** as core quality gates.
 - Maintain emphasis on **FR-050/FR-051 CLI workflows** as the primary product path until MVP 3 extension maturity.
-- Preserve VS Code extension scope as incremental and quality-gated to reduce delivery risk.
 
 ---
 

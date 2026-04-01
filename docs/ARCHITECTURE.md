@@ -14,7 +14,7 @@ DevWayfinder follows a modular, layered architecture designed for extensibility,
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        User Interfaces                          │
-│               (CLI / VS Code Extension / Python API)            │
+│               (CLI / Python API)                                │
 ├─────────────────────────────────────────────────────────────────┤
 │                      Orchestration Layer                         │
 │           (Guide Generator, Pipeline Controller)                 │
@@ -43,10 +43,9 @@ DevWayfinder follows a modular, layered architecture designed for extensibility,
 
 ### 2.2 Graceful Degradation
 - System works without LLM (heuristic summaries)
-- System works without Tree-sitter (Python AST + regex parsing)
+- System works without AST (fallback to regex parsing)
 - System works without Git (skip history analysis)
 - Features degrade gracefully based on available capabilities
-- Tree-sitter is an optional post-MVP enhancement, not a core dependency
 
 ### 2.3 Single Responsibility
 - Each module handles one concern
@@ -285,7 +284,6 @@ Analysis uses a layered approach, trying each method in order of availability an
 │  Layer 1: Language AST (Accurate, Built-in for Python)         │
 │  - Python: ast module (standard library, zero dependencies)   │
 │  - Extracts imports, exports, classes, functions               │
-│  - Future: Tree-sitter for multi-language AST (optional)       │
 ├──────────────────────────────────────────────────────────────────┤
 │  Layer 2: Regex Heuristics (Fast, Good Coverage)               │
 │  - Pattern matching for imports/exports in any language        │
@@ -304,10 +302,10 @@ Analysis uses a layered approach, trying each method in order of availability an
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-> **Architectural Decision AD-001:** Tree-sitter is deferred to post-MVP as an optional
-> enhancement. Python AST + regex heuristics + LLM fallback provide sufficient accuracy
+> **Architectural Decision AD-001:** Complex language-specific parsers
+> are excluded. Python AST + regex heuristics + LLM fallback provide sufficient accuracy
 > for onboarding use cases. The `Analyzer` protocol defines stable plugin hooks for
-> future specialized parsers. See [REQUIREMENTS.md](REQUIREMENTS.md) for details.
+> future modular additions. See [REQUIREMENTS.md](REQUIREMENTS.md) for details.
 
 ### 5.3 Provider Protocol
 
@@ -518,11 +516,9 @@ class DevWayfinderConfig(BaseModel):
 1. Create `analyzers/{language}/` package
 2. Implement `LanguageAnalyzer(Analyzer)` protocol
 3. Register in `analyzers/registry.py`
-4. Optionally add Tree-sitter grammar (post-MVP enhancement)
 
-> **Note:** Tree-sitter integration is deferred to post-MVP. New language analyzers
-> should use regex heuristics as the primary approach, with AST parsing added when
-> the language's standard tooling supports it.
+> **Note:** Complex language-specific tools are out of scope. New language analyzers
+> should use regex heuristics as the primary approach.
 
 ```python
 # analyzers/rust/imports.py
@@ -616,23 +612,6 @@ DevWayfinderError (base)
 
 ---
 
-## 12. Future Architecture (VS Code Extension)
+## 12. Future Architecture (Simple Editor Integration)
 
-```
-DevWayfinder Extension
-├── Extension Host (TypeScript)
-│   ├── TreeViewProvider (module tree)
-│   ├── MermaidGraphProvider (dependency visualization via Markdown preview)
-│   ├── HoverProvider (inline summaries)
-│   └── CommandHandlers
-│
-├── Language Server (Python)
-│   ├── Analysis Engine (shared with CLI)
-│   ├── Incremental Updater
-│   └── Cache Manager
-│
-└── Communication
-    └── JSON-RPC over stdio
-```
-
-The extension reuses the same core Python analysis engine, communicating via a Language Server Protocol-style interface. This ensures consistency between CLI and extension outputs.
+Future integrations (such as editor wrappers) will continue to rely on the CLI tool to generate markdown guides into the project's `./docs/guides/` folder, keeping the core functionality simple and centralized without complex webview or deep language server logic.
