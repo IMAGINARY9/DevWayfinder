@@ -188,6 +188,60 @@ class TestEdgeCases:
         # Cycles might or might not be detected depending on resolution
         assert project.module_count == 2
 
+    @pytest.mark.slow
+    async def test_large_project_1000_files(self, tmp_path: Path) -> None:
+        """Analyzer should handle very large repositories without crashing."""
+        src = tmp_path / "src"
+        src.mkdir()
+
+        for index in range(1001):
+            (src / f"module_{index}.py").write_text(
+                f"def fn_{index}() -> int:\n    return {index}\n",
+                encoding="utf-8",
+            )
+
+        builder = GraphBuilder()
+        project, graph = await builder.build(tmp_path)
+
+        assert project.module_count == 1001
+        assert graph.node_count == 1001
+
+    async def test_file_with_non_utf8_encoding(self, tmp_path: Path) -> None:
+        """Non-UTF8 text files should be analyzed via replacement decoding."""
+        src = tmp_path / "src"
+        src.mkdir()
+
+        encoded_source = "# caf\xe9\ndef run() -> int:\n    return 1\n".encode("cp1252")
+        (src / "legacy.py").write_bytes(encoded_source)
+
+        builder = GraphBuilder()
+        project, _graph = await builder.build(tmp_path)
+
+        assert project.module_count == 1
+        module = next(iter(project.modules.values()))
+        assert "run" in module.exports
+
+    async def test_circular_dependency_chain(self, tmp_path: Path) -> None:
+        """Circular dependency chains should be detectable in graph output."""
+        src = tmp_path / "src"
+        src.mkdir()
+
+        (src / "a.py").write_text(
+            "from src.b import b\ndef a() -> None:\n    b()\n", encoding="utf-8"
+        )
+        (src / "b.py").write_text(
+            "from src.c import c\ndef b() -> None:\n    c()\n", encoding="utf-8"
+        )
+        (src / "c.py").write_text(
+            "from src.a import a\ndef c() -> None:\n    a()\n", encoding="utf-8"
+        )
+
+        builder = GraphBuilder()
+        _project, graph = await builder.build(tmp_path)
+
+        assert graph.has_cycles() is True
+        assert len(graph.find_cycles()) >= 1
+
 
 class TestPerformance:
     """Performance tests."""
