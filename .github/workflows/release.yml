@@ -71,6 +71,7 @@ jobs:
           path: dist
 
       - name: Install wheel and run smoke checks
+        shell: bash
         run: |
           python - <<'PY'
           import os
