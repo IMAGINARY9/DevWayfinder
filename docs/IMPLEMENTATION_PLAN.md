@@ -564,6 +564,8 @@ Assembles analysis + summaries into the final onboarding document.
 ### Phase 3.2: PyPI Package Publication 🔄
 - [x] Finalize package metadata in pyproject.toml (description, classifiers, URLs)
 - [x] Build and test sdist and wheel distributions
+- [x] Add release workflow with optional TestPyPI/PyPI publishing
+- [x] Add cross-platform install smoke workflow (Windows/macOS/Linux)
 - [ ] Publish to PyPI: `pip install devwayfinder`
 - [ ] Verify installation works on clean environments (Windows, macOS, Linux)
 - [x] Write installation verification tests
@@ -635,7 +637,7 @@ Update this section as phases complete:
 | MVP 2 | ✅ Complete | Metrics, git analyzer, caching, start-here, mermaid, templates |
 | MVP 2.5 | ✅ Complete | Coverage uplift, token/cost transparency, integration tests, edge-case hardening, docs |
 | MVP 3.1 | ✅ Complete | Guide template loading, inheritance, ordering, inclusion/exclusion, tests |
-| MVP 3.2 | 🔄 In Progress | Packaging metadata + dist build + packaging tests complete; PyPI publish pending |
+| MVP 3.2 | 🔄 In Progress | Packaging metadata/build/tests complete; release + smoke workflows added; PyPI publish and first matrix verification run pending |
 | MVP 3.3 | 🔄 In Progress | Benchmark fixtures/runner/results published; further memory optimization pending |
 
 **Status Legend:**
