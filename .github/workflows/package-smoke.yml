@@ -1,0 +1,105 @@
+name: Package Smoke
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-dist:
+    name: Build Dist
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+          python -m build --sdist --wheel --outdir dist
+          python -m twine check dist/*
+
+      - name: Upload dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-dist
+          path: dist/*
+
+  install-smoke:
+    name: Install Smoke (${{ matrix.os }})
+    needs: build-dist
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: smoke-dist
+          path: dist
+
+      - name: Install wheel and execute smoke checks
+        run: |
+          python - <<'PY'
+          import os
+          import pathlib
+          import subprocess
+          import sys
+
+          venv_dir = pathlib.Path(".venv-install-smoke")
+          subprocess.check_call([sys.executable, "-m", "venv", str(venv_dir)])
+
+          scripts = "Scripts" if os.name == "nt" else "bin"
+          py_name = "python.exe" if os.name == "nt" else "python"
+          pip_name = "pip.exe" if os.name == "nt" else "pip"
+
+          py = venv_dir / scripts / py_name
+          pip = venv_dir / scripts / pip_name
+
+          wheels = sorted(pathlib.Path("dist").glob("devwayfinder-*.whl"))
+          if not wheels:
+              raise SystemExit("No wheel artifact available")
+
+          subprocess.check_call([str(pip), "install", "--upgrade", "pip"])
+          subprocess.check_call([str(pip), "install", str(wheels[-1])])
+          subprocess.check_call([str(py), "-m", "devwayfinder", "version"])
+          subprocess.check_call(
+              [
+                  str(py),
+                  "-m",
+                  "devwayfinder",
+                  "generate",
+                  "tests/fixtures/sample_project",
+                  "--no-llm",
+                  "--output",
+                  "SMOKE_GUIDE.md",
+              ]
+          )
+
+          guide = pathlib.Path("SMOKE_GUIDE.md")
+          if not guide.exists() or guide.stat().st_size == 0:
+              raise SystemExit("Smoke guide output is missing or empty")
+          PY

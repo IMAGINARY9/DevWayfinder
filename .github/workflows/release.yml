@@ -1,0 +1,169 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_target:
+        description: "Publish target"
+        required: true
+        default: "none"
+        type: choice
+        options:
+          - none
+          - testpypi
+          - pypi
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build-dist:
+    name: Build Distribution
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build and validate package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+          python -m build --sdist --wheel --outdir dist
+          python -m twine check dist/*
+
+      - name: Upload dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-artifacts
+          path: dist/*
+
+  smoke-install:
+    name: Smoke Install (${{ matrix.os }})
+    needs: build-dist
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-artifacts
+          path: dist
+
+      - name: Install wheel and run smoke checks
+        run: |
+          python - <<'PY'
+          import os
+          import pathlib
+          import subprocess
+          import sys
+
+          venv_dir = pathlib.Path(".venv-smoke")
+          subprocess.check_call([sys.executable, "-m", "venv", str(venv_dir)])
+
+          scripts = "Scripts" if os.name == "nt" else "bin"
+          py_name = "python.exe" if os.name == "nt" else "python"
+          pip_name = "pip.exe" if os.name == "nt" else "pip"
+
+          py = venv_dir / scripts / py_name
+          pip = venv_dir / scripts / pip_name
+
+          wheels = sorted(pathlib.Path("dist").glob("devwayfinder-*.whl"))
+          if not wheels:
+              raise SystemExit("No wheel artifact found")
+
+          subprocess.check_call([str(pip), "install", "--upgrade", "pip"])
+          subprocess.check_call([str(pip), "install", str(wheels[-1])])
+          subprocess.check_call([str(py), "-m", "devwayfinder", "version"])
+          subprocess.check_call(
+              [
+                  str(py),
+                  "-m",
+                  "devwayfinder",
+                  "analyze",
+                  "tests/fixtures/sample_project",
+                  "--json",
+              ]
+          )
+          PY
+
+  publish:
+    name: Publish Package
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_target != 'none' }}
+    needs: [build-dist, smoke-install]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-artifacts
+          path: dist
+
+      - name: Publish to selected index
+        env:
+          TARGET: ${{ inputs.publish_target }}
+          TEST_PYPI_API_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          import pathlib
+          import subprocess
+          import sys
+
+          target = os.environ["TARGET"]
+          if target == "testpypi":
+              repo_url = "https://test.pypi.org/legacy/"
+              token = os.environ.get("TEST_PYPI_API_TOKEN")
+          elif target == "pypi":
+              repo_url = "https://upload.pypi.org/legacy/"
+              token = os.environ.get("PYPI_API_TOKEN")
+          else:
+              raise SystemExit(f"Unsupported publish target: {target}")
+
+          if not token:
+              raise SystemExit(f"Missing token secret for target: {target}")
+
+          files = [str(path) for path in pathlib.Path("dist").glob("*")]
+          if not files:
+              raise SystemExit("No dist artifacts found to publish")
+
+          env = os.environ.copy()
+          env["TWINE_USERNAME"] = "__token__"
+          env["TWINE_PASSWORD"] = token
+
+          subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "twine"])
+          subprocess.check_call(
+              [
+                  sys.executable,
+                  "-m",
+                  "twine",
+                  "upload",
+                  "--repository-url",
+                  repo_url,
+                  *files,
+              ],
+              env=env,
+          )
+          PY
