@@ -68,6 +68,11 @@ def generate(
         "--no-llm",
         help="Use heuristic mode (no LLM)",
     ),
+    guide_template: str | None = typer.Option(
+        None,
+        "--guide-template",
+        help="Path to guide template YAML (default: .devwayfinder/template.yaml)",
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -85,6 +90,7 @@ def generate(
             base_url=base_url,
             api_key=api_key,
             no_llm=no_llm,
+            guide_template=guide_template,
             verbose=verbose,
         )
     )
@@ -99,6 +105,7 @@ async def _generate_async(
     base_url: str | None,
     api_key: str | None,
     no_llm: bool,
+    guide_template: str | None,
     verbose: bool,
 ) -> None:
     """Run the full generation pipeline."""
@@ -166,6 +173,7 @@ async def _generate_async(
                 use_llm=not no_llm,
                 providers=providers,
                 include_mermaid=True,
+                template_path=Path(guide_template).resolve() if guide_template else None,
             )
             generator = GuideGenerator(
                 project_path=project_path,
@@ -221,6 +229,9 @@ async def _generate_async(
 
     except DevWayfinderError as exc:
         console.print(f"\n[red]{exc.__class__.__name__}:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+    except ValueError as exc:
+        console.print(f"\n[red]ConfigurationError:[/red] {exc}")
         raise typer.Exit(code=1) from exc
     finally:
         for provider in providers:

@@ -11,6 +11,12 @@ from devwayfinder.generators.guide_generator import (
     MarkdownGenerator,
     ProgressCallback,
 )
+from devwayfinder.generators.guide_template import (
+    BUILTIN_GUIDE_TEMPLATES,
+    GuideTemplate,
+    SectionTemplate,
+    load_guide_template,
+)
 from devwayfinder.generators.mermaid import (
     DiagramDirection,
     DiagramEdge,
@@ -24,18 +30,22 @@ from devwayfinder.generators.mermaid import (
 )
 
 __all__ = [
+    "BUILTIN_GUIDE_TEMPLATES",
     "DiagramDirection",
     "DiagramEdge",
     "DiagramNode",
     "GenerationConfig",
     "GenerationResult",
     "GuideGenerator",
+    "GuideTemplate",
     "MarkdownGenerator",
     "MermaidConfig",
     "MermaidDiagram",
     "MermaidGenerator",
     "NodeShape",
     "ProgressCallback",
+    "SectionTemplate",
     "generate_mermaid_diagram",
     "generate_mermaid_markdown",
+    "load_guide_template",
 ]

@@ -95,6 +95,7 @@ class TestGenerateCommand:
         assert "--output" in output
         assert "--no-llm" in output
         assert "--model-provider" in output
+        assert "--guide-template" in output
 
     def test_generate_heuristic_mode(self, tmp_path: Path) -> None:
         """Test generate command with heuristics only."""
@@ -126,6 +127,39 @@ class TestGenerateCommand:
         assert output_file.exists()
         content = output_file.read_text()
         assert "test-project" in content.lower() or len(content) > 0
+
+    def test_generate_with_custom_guide_template(self, tmp_path: Path) -> None:
+        """Test generate command with explicit guide template path."""
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "main.py").write_text(
+            '"""Main module."""\n\ndef main():\n    pass\n\nif __name__ == "__main__":\n    main()\n'
+        )
+        (tmp_path / "pyproject.toml").write_text('[project]\nname = "test-project"\n')
+
+        template_file = tmp_path / "template.yaml"
+        template_file.write_text(
+            """
+extends: default
+sections:
+  - type: start_here
+    title: Read This First
+""".strip()
+            + "\n"
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "generate",
+                str(tmp_path),
+                "--no-llm",
+                "--guide-template",
+                str(template_file),
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Read This First" in result.output
 
 
 class TestTestModelCommand:

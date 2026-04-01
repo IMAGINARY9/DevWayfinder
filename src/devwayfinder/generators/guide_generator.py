@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 
 from devwayfinder.analyzers.graph_builder import GraphBuilder
 from devwayfinder.core.guide import OnboardingGuide, Section, SectionType
+from devwayfinder.generators.guide_template import GuideTemplate, load_guide_template
 from devwayfinder.summarizers import SummarizationConfig, SummarizationController
 
 if TYPE_CHECKING:
@@ -62,6 +63,7 @@ class GenerationConfig:
     include_mermaid: bool = True
     max_modules_in_graph: int = 50
     include_file_list: bool = True
+    template_path: Path | None = None
 
 
 @dataclass
@@ -105,6 +107,10 @@ class GuideGenerator:
         """
         self.project_path = project_path.resolve()
         self.config = config or GenerationConfig()
+        self.guide_template: GuideTemplate = load_guide_template(
+            self.project_path,
+            self.config.template_path,
+        )
 
         # Initialize graph builder (handles all analysis)
         self.graph_builder = GraphBuilder(
@@ -274,12 +280,26 @@ class GuideGenerator:
             model_used=self._get_model_name(),
         )
 
-        # Add sections
-        guide.add_section(self._create_overview_section())
-        guide.add_section(self._create_architecture_section())
-        guide.add_section(self._create_modules_section(summaries))
-        guide.add_section(self._create_dependencies_section())
-        guide.add_section(self._create_start_here_section())
+        section_builders = {
+            SectionType.OVERVIEW: self._create_overview_section,
+            SectionType.ARCHITECTURE: self._create_architecture_section,
+            SectionType.MODULES: lambda: self._create_modules_section(summaries),
+            SectionType.DEPENDENCIES: self._create_dependencies_section,
+            SectionType.START_HERE: self._create_start_here_section,
+        }
+
+        for section_template in self.guide_template.sections:
+            if not section_template.enabled:
+                continue
+
+            builder = section_builders.get(section_template.section_type)
+            if builder is None:
+                continue
+
+            section = builder()
+            if section_template.title:
+                section.title = section_template.title
+            guide.add_section(section)
 
         return guide
 
