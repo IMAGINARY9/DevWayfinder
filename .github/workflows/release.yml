@@ -163,7 +163,7 @@ jobs:
           env["TWINE_USERNAME"] = "__token__"
           env["TWINE_PASSWORD"] = token
 
-            subprocess.check_call(
+          subprocess.check_call(
               [
                 sys.executable,
                 "-m",
@@ -174,7 +174,7 @@ jobs:
                 "pkginfo>=1.12.0",
               ]
             )
-            subprocess.check_call([sys.executable, "-m", "twine", "check", *files])
+          subprocess.check_call([sys.executable, "-m", "twine", "check", *files])
           try:
               subprocess.run(
                   [
