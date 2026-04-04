@@ -117,9 +117,7 @@ class PythonASTAnalyzer(BaseAnalyzer):
                 exports = self._get_public_exports(extraction)
 
             # Flatten imports
-            imports = list(extraction.imports)
-            for module, _names in extraction.from_imports:
-                imports.append(module)
+            imports = self._flatten_imports(extraction)
 
             return AnalysisResult(
                 path=path,
@@ -176,12 +174,13 @@ class PythonASTAnalyzer(BaseAnalyzer):
                     result.imports.append(alias.name)
 
             elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    names = [alias.name for alias in node.names]
-                    result.from_imports.append((node.module, names))
-                    # Also add the module itself
-                    if node.level == 0:  # Absolute import
-                        result.imports.append(node.module)
+                names = [alias.name for alias in node.names]
+                relative_prefix = "." * node.level
+                module_name = node.module or ""
+                full_module = f"{relative_prefix}{module_name}"
+
+                if full_module:
+                    result.from_imports.append((full_module, names))
 
             # Handle __all__ definition
             elif isinstance(node, ast.Assign):
@@ -216,6 +215,32 @@ class PythonASTAnalyzer(BaseAnalyzer):
                     result.has_main_block = True
 
         return result
+
+    def _flatten_imports(self, extraction: PythonExtractionResult) -> list[str]:
+        """Flatten direct and from-import statements into graph-resolvable imports."""
+        imports: list[str] = []
+        seen: set[str] = set()
+
+        def _add(import_name: str) -> None:
+            cleaned = import_name.strip()
+            if cleaned and cleaned not in seen:
+                seen.add(cleaned)
+                imports.append(cleaned)
+
+        for import_name in extraction.imports:
+            _add(import_name)
+
+        for module, names in extraction.from_imports:
+            # Pure dot prefixes (., .., ...) need imported names to resolve to siblings/parents.
+            if module and set(module) != {"."}:
+                _add(module)
+
+            if module and set(module) == {"."}:
+                for name in names:
+                    if name != "*":
+                        _add(f"{module}{name}")
+
+        return imports
 
     def _extract_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> FunctionInfo:
         """Extract function information."""

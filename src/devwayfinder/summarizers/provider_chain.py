@@ -68,16 +68,21 @@ class ProviderChain:
             try:
                 if provider_call is not None:
                     summary = await provider_call(provider, context)
+                    if not self._has_text(summary):
+                        raise ValueError("Provider returned empty summary")
                     logger.info("Provider %s succeeded", provider.name)
-                    return provider.name, summary
+                    return provider.name, summary.strip()
 
                 if self.retry_manager:
                     summary = await self.retry_manager.call_with_retry(provider, context)
                 else:
                     summary = await provider.summarize(context)
 
+                if not self._has_text(summary):
+                    raise ValueError("Provider returned empty summary")
+
                 logger.info("Provider %s succeeded", provider.name)
-                return provider.name, summary
+                return provider.name, summary.strip()
 
             except Exception as e:
                 last_error = f"{provider.name}: {e}"
@@ -87,6 +92,11 @@ class ProviderChain:
         # All providers failed - return None summary
         logger.error("All providers failed. Last error: %s", last_error)
         return "none", None
+
+    @staticmethod
+    def _has_text(summary: str | None) -> bool:
+        """Check whether a provider response contains useful content."""
+        return bool(summary and summary.strip())
 
     def should_use_heuristic(self) -> bool:
         """Check if heuristic fallback is enabled.

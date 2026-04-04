@@ -26,7 +26,7 @@ devwayfinder test-model --provider ollama --model mistral:7b
 ```bash
 devwayfinder generate ./my-project --no-llm
 # or
-# devwayfinder generate ./my-project --model-provider openai_compat --base-url http://127.0.0.1:5000/v1
+# devwayfinder generate ./my-project --model-provider openai_compat --base-url http://127.0.0.1:11434/v1
 ```
 
 ---

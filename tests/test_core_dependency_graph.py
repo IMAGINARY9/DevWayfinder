@@ -277,3 +277,36 @@ class TestDependencyGraphBehaviors:
         assert "graph" in mermaid.lower() or "td" in mermaid.lower()
         assert "mod1" in mermaid
         assert "mod2" in mermaid
+
+    def test_graph_mermaid_duplicate_filenames_do_not_collide(self, tmp_path: Path) -> None:
+        """Mermaid output should keep same-stem files as distinct nodes."""
+        graph = DependencyGraph()
+
+        left_main = Module(
+            name="main",
+            path=tmp_path / "left" / "main.py",
+            module_type=ModuleType.FILE,
+            language="python",
+        )
+        right_main = Module(
+            name="main",
+            path=tmp_path / "right" / "main.py",
+            module_type=ModuleType.FILE,
+            language="python",
+        )
+        helper = Module(
+            name="helper",
+            path=tmp_path / "helper.py",
+            module_type=ModuleType.FILE,
+            language="python",
+        )
+
+        graph.add_module(left_main)
+        graph.add_module(right_main)
+        graph.add_module(helper)
+        graph.add_dependency(left_main.path, helper.path)
+        graph.add_dependency(right_main.path, helper.path)
+
+        mermaid = graph.to_mermaid()
+        assert mermaid.count('["main.py"]') == 2
+        assert mermaid.count("-->") == 2

@@ -131,6 +131,8 @@ class GuideGenerator:
         self._llm_calls = 0
         self._summary_providers: dict[str, str] = {}
         self._summary_tokens: dict[str, int] = {}
+        self._summary_input_tokens: dict[str, int] = {}
+        self._summary_output_tokens: dict[str, int] = {}
 
     async def generate(
         self,
@@ -262,6 +264,8 @@ class GuideGenerator:
                 summaries[path] = result.summary
                 self._summary_providers[path] = result.provider_used
                 self._summary_tokens[path] = result.tokens_used or 0
+                self._summary_input_tokens[path] = result.input_tokens or 0
+                self._summary_output_tokens[path] = result.output_tokens or 0
                 if result.provider_used != "heuristic":
                     self._llm_calls += 1
             else:
@@ -538,10 +542,17 @@ class GuideGenerator:
         """Estimate generation cost based on tracked token usage and active model."""
         from devwayfinder.utils.tokens import CostEstimate, TokenEstimate, estimate_cost
 
+        input_tokens = sum(self._summary_input_tokens.values())
+        output_tokens = sum(self._summary_output_tokens.values())
+
+        if input_tokens == 0 and output_tokens == 0 and self._summary_tokens:
+            # Backward-compatible fallback for older call-sites that only store totals.
+            input_tokens = sum(self._summary_tokens.values())
+
         token_estimate = TokenEstimate(
-            input_tokens=(self._summary_tokens and sum(self._summary_tokens.values())) or 0,
-            output_tokens=0,
-            total_tokens=(self._summary_tokens and sum(self._summary_tokens.values())) or 0,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=input_tokens + output_tokens,
         )
         model_name = self._get_model_name()
         cost: CostEstimate = estimate_cost(token_estimate, model_name=model_name)

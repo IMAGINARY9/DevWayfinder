@@ -441,6 +441,30 @@ class TestSummarizationController:
         assert result.provider_used == "mock_provider"
 
     @pytest.mark.asyncio
+    async def test_empty_summary_falls_back_to_next_provider(
+        self,
+        project_root: Path,
+        sample_module: Module,
+        mock_provider: MagicMock,
+    ) -> None:
+        """Should treat empty provider responses as failure and continue fallback chain."""
+        empty_provider = MagicMock()
+        empty_provider.name = "empty_provider"
+        empty_provider.summarize = AsyncMock(return_value="   ")
+
+        config = SummarizationConfig(
+            providers=[empty_provider, mock_provider],
+            max_retries=1,
+        )
+        controller = SummarizationController(project_root, config)
+
+        result = await controller.summarize_module(sample_module)
+
+        assert result.success
+        assert result.provider_used == "mock_provider"
+        assert result.summary == "This is a mock summary."
+
+    @pytest.mark.asyncio
     async def test_heuristic_only(
         self,
         project_root: Path,

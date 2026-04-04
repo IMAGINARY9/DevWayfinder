@@ -197,13 +197,18 @@ class DependencyGraph:
         # Limit nodes for readability
         nodes = list(self._graph.nodes)[:max_nodes]
         node_set = set(nodes)
+        node_ids = {node: f"n{index}" for index, node in enumerate(nodes)}
+
+        # Add deterministic node declarations so duplicate filenames do not collide.
+        for node in nodes:
+            label = Path(node).name.replace('"', r"\"")
+            lines.append(f'    {node_ids[node]}["{label}"]')
 
         # Add edges between included nodes
         for u, v, data in self._graph.edges(data=True):
             if u in node_set and v in node_set:
-                # Sanitize names for Mermaid
-                u_name = Path(u).stem.replace("-", "_").replace(".", "_")
-                v_name = Path(v).stem.replace("-", "_").replace(".", "_")
+                u_name = node_ids[u]
+                v_name = node_ids[v]
                 kind = data.get("kind", "import")
 
                 if kind == "import":

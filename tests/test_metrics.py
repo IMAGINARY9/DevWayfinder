@@ -236,6 +236,34 @@ def func2(x):
         assert metrics[1].name == "func2"
         assert metrics[1].parameters == 1
 
+    def test_class_metrics_are_scoped_per_class(self) -> None:
+        """Class complexity should include only methods defined on that class."""
+        import ast
+
+        code = """
+class A:
+    def first(self, value):
+        if value:
+            return 1
+        return 0
+
+class B:
+    def second(self, value):
+        if value > 1:
+            return value
+        return 0
+"""
+        tree = ast.parse(code)
+        visitor = CyclomaticComplexityVisitor()
+        visitor.visit(tree)
+
+        class_metrics = {metric.name: metric for metric in visitor.class_metrics}
+
+        assert class_metrics["A"].method_count == 1
+        assert class_metrics["B"].method_count == 1
+        assert class_metrics["A"].complexity == 2
+        assert class_metrics["B"].complexity == 2
+
 
 # =============================================================================
 # MetricsAnalyzer Tests

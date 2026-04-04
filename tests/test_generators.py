@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
@@ -300,6 +301,20 @@ class TestGuideGenerator:
 
         await generator.generate()
         await generator.close()  # Should not raise
+
+    def test_estimate_generation_cost_tracks_input_and_output(self, sample_project: Path) -> None:
+        """Cost estimation should account for distinct input and output pricing."""
+        config = GenerationConfig(use_llm=True)
+        generator = GuideGenerator(sample_project, config)
+
+        # gpt-4o-mini pricing per 1M tokens: input=0.15, output=0.60
+        generator.config.providers = [SimpleNamespace(name="gpt-4o-mini")]
+        generator._summary_input_tokens = {"module": 1_000_000}
+        generator._summary_output_tokens = {"module": 1_000_000}
+        generator._summary_tokens = {"module": 2_000_000}
+
+        estimated_cost = generator._estimate_generation_cost()
+        assert estimated_cost == pytest.approx(0.75)
 
 
 # =============================================================================

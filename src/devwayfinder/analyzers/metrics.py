@@ -57,6 +57,7 @@ class FunctionMetrics:
     complexity: int
     parameters: int
     is_method: bool = False
+    class_name: str | None = None
 
 
 @dataclass
@@ -135,7 +136,7 @@ class CyclomaticComplexityVisitor(ast.NodeVisitor):
     def __init__(self) -> None:
         """Initialize visitor."""
         self.complexity = 1  # Base complexity
-        self._function_complexities: list[tuple[str, int, int, int, bool]] = []
+        self._function_complexities: list[tuple[str, int, int, int, bool, str | None]] = []
         self._class_complexities: list[tuple[str, int, int]] = []
         self._current_class: str | None = None
         self._base_complexity = 0
@@ -166,7 +167,14 @@ class CyclomaticComplexityVisitor(ast.NodeVisitor):
             param_count -= 1
 
         self._function_complexities.append(
-            (node.name, node.lineno, func_complexity, param_count, is_method)
+            (
+                node.name,
+                node.lineno,
+                func_complexity,
+                param_count,
+                is_method,
+                self._current_class,
+            )
         )
         self._base_complexity = old_base
 
@@ -290,18 +298,23 @@ class CyclomaticComplexityVisitor(ast.NodeVisitor):
                 complexity=complexity,
                 parameters=params,
                 is_method=is_method,
+                class_name=class_name,
             )
-            for name, lineno, complexity, params, is_method in self._function_complexities
+            for name, lineno, complexity, params, is_method, class_name in self._function_complexities
         ]
 
     @property
     def class_metrics(self) -> list[ClassMetrics]:
         """Get class metrics."""
+        methods = self.function_metrics
+
         # Match classes with their method complexities
         result = []
         for name, lineno, method_count in self._class_complexities:
             # Sum complexity of methods that belong to this class
-            class_complexity = sum(f.complexity for f in self.function_metrics if f.is_method)
+            class_complexity = sum(
+                f.complexity for f in methods if f.is_method and f.class_name == name
+            )
             result.append(
                 ClassMetrics(
                     name=name,

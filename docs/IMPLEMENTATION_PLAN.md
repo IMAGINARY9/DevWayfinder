@@ -2,7 +2,7 @@
 
 > **Version:** 2.6.0  
 > **Status:** MVP 2.5 Complete, MVP 3 In Progress  
-> **Last Updated:** 2026-04-01  
+> **Last Updated:** 2026-04-04  
 > **Authoritative Source:** This document is the single source of truth for development roadmap and milestones.
 
 ---
@@ -639,6 +639,18 @@ Update this section as phases complete:
 | MVP 3.1 | ✅ Complete | Guide template loading, inheritance, ordering, inclusion/exclusion, tests |
 | MVP 3.2 | 🔄 In Progress | Packaging metadata/build/tests complete; release + smoke workflows added; PyPI publish and first matrix verification run pending |
 | MVP 3.3 | 🔄 In Progress | Benchmark fixtures/runner/results published; further memory optimization pending |
+
+### 2026-04-04 Reliability Hardening Milestone ✅
+
+- [x] Fixed class-level complexity attribution so each class reports only its own method complexity.
+- [x] Fixed Python AST relative-import flattening to produce graph-resolvable dependency edges.
+- [x] Fixed rolling recent-change filtering in git analyzer using timedelta windows.
+- [x] Fixed Mermaid export node-ID collisions for duplicate filenames across directories.
+- [x] Fixed provider fallback behavior so empty model responses trigger fallback instead of false success.
+- [x] Fixed generation cost estimation to account for distinct input vs output token pricing.
+- [x] Added regression tests for all fixes and validated full quality gates.
+- [x] Verified local OpenAI-compatible endpoint connectivity and CLI completion check against Ollama (`http://127.0.0.1:11434/v1`).
+- [x] Updated usage docs and quick-start examples for current local endpoint defaults.
 
 **Status Legend:**
 - 🔲 Not Started

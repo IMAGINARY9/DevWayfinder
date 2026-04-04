@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -458,8 +458,7 @@ class GitAnalyzer:
             Files changed within the time period
         """
         repo_info = self.analyze_repository()
-        cutoff = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
-        cutoff = cutoff.replace(day=max(1, cutoff.day - days))
+        cutoff = datetime.now(UTC) - timedelta(days=days)
 
         files = [
             f for f in repo_info.files.values() if f.last_modified and f.last_modified >= cutoff

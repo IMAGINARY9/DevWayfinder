@@ -315,6 +315,7 @@ from . import relative_module
         assert "sys" in result.imports
         assert "pathlib" in result.imports
         assert "typing" in result.imports
+        assert ".relative_module" in result.imports
 
     @pytest.mark.asyncio
     async def test_analyze_functions(self, tmp_path: Path) -> None:
@@ -532,6 +533,25 @@ class TestGraphBuilder:
 
         # Graph should have both modules
         assert graph.node_count >= 2
+
+    @pytest.mark.asyncio
+    async def test_dependency_edges_for_relative_imports(self, tmp_path: Path) -> None:
+        """Relative imports should resolve to file dependencies in the graph."""
+        proj = tmp_path / "proj"
+        pkg = proj / "pkg"
+        pkg.mkdir(parents=True)
+
+        (proj / "pyproject.toml").write_text("[project]\nname='proj'\n")
+        (pkg / "__init__.py").write_text("")
+        (pkg / "a.py").write_text("from . import b\n")
+        (pkg / "b.py").write_text("VALUE = 1\n")
+
+        builder = GraphBuilder()
+        _project, graph = await builder.build(proj)
+
+        deps = graph.get_dependencies((pkg / "a.py").resolve())
+        dep_names = {dep.name for dep in deps}
+        assert "b" in dep_names
 
 
 class TestBuildDependencyGraph:

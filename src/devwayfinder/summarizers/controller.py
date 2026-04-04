@@ -50,6 +50,8 @@ class SummarizationResult:
     success: bool = True
     error: str | None = None
     tokens_used: int | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
 
 
 @dataclass
@@ -373,15 +375,17 @@ class SummarizationController:
         )
 
         # If a provider succeeded
-        if summary is not None:
+        if summary is not None and summary.strip():
             total_tokens = estimate_total_tokens(context)
             return SummarizationResult(
-                summary=summary,
+                summary=summary.strip(),
                 provider_used=provider_name,
                 summary_type=summary_type,
                 module_name=context.module_name,
                 success=True,
                 tokens_used=total_tokens.total_tokens,
+                input_tokens=total_tokens.input_tokens,
+                output_tokens=total_tokens.output_tokens,
             )
 
         # All providers failed, try heuristic fallback
@@ -395,6 +399,8 @@ class SummarizationController:
                 module_name=context.module_name,
                 success=True,
                 tokens_used=0,
+                input_tokens=0,
+                output_tokens=0,
             )
 
         # All providers and heuristic failed
@@ -406,6 +412,8 @@ class SummarizationController:
             success=False,
             error="All providers failed and heuristic fallback is disabled",
             tokens_used=0,
+            input_tokens=0,
+            output_tokens=0,
         )
 
     def _generate_heuristic_summary(

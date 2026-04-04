@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import subprocess
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -259,6 +259,30 @@ class TestGitAnalyzer:
 
         # Should have at least main.py
         assert len(hotspots) >= 1
+
+    def test_get_recent_changes_uses_rolling_window(self, tmp_path: Path) -> None:
+        """Recent changes should use timedelta-based lookback across month boundaries."""
+        analyzer = GitAnalyzer(tmp_path)
+        now = datetime.now(UTC)
+
+        recent = FileGitInfo(path=tmp_path / "recent.py", last_modified=now - timedelta(days=20))
+        old = FileGitInfo(path=tmp_path / "old.py", last_modified=now - timedelta(days=45))
+
+        mocked_repo_info = RepoGitInfo(
+            root=tmp_path,
+            is_git_repo=True,
+            files={
+                str(recent.path): recent,
+                str(old.path): old,
+            },
+        )
+
+        with patch.object(analyzer, "analyze_repository", return_value=mocked_repo_info):
+            changes = analyzer.get_recent_changes(days=30)
+
+        changed_names = {item.path.name for item in changes}
+        assert "recent.py" in changed_names
+        assert "old.py" not in changed_names
 
     def test_analyze_repo_graceful_on_non_repo(self, tmp_path: Path) -> None:
         """Test graceful handling of non-repo."""

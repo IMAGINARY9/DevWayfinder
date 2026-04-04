@@ -218,9 +218,11 @@ async def test_ollama_full_pipeline_generate_live() -> None:
 @pytest.mark.requires_openai_compat
 @pytest.mark.asyncio
 async def test_openai_compat_health_and_summarize_live() -> None:
-    """Validate OpenAI-compatible local endpoints (LM Studio/vLLM/textgen-webui)."""
+    """Validate OpenAI-compatible local endpoints (Ollama/LM Studio/vLLM/textgen-webui)."""
     endpoint_candidates = [
         os.getenv("DEVWAYFINDER_OPENAI_COMPAT_BASE_URL", "").strip(),
+        "http://127.0.0.1:11434/v1",  # Ollama default OpenAI-compatible port
+        "http://127.0.0.1:11435/v1",  # Ollama alternate OpenAI-compatible port
         "http://127.0.0.1:5000/v1",  # text-generation-webui
         "http://127.0.0.1:1234/v1",  # LM Studio
         "http://127.0.0.1:8000/v1",  # vLLM

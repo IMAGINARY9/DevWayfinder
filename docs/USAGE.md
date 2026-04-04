@@ -1,8 +1,8 @@
 # DevWayfinder - Usage Guide
 
-> **Version:** 1.1.0  
+> **Version:** 1.1.1  
 > **Status:** Active  
-> **Last Updated:** 2026-04-01  
+> **Last Updated:** 2026-04-04  
 > **Authoritative Source:** This document is the single source of truth for runtime usage and provider setup.
 
 ---
@@ -19,7 +19,7 @@ devwayfinder generate ./my-project --no-llm
 # Generate guide with provider
 devwayfinder generate ./my-project \
   --model-provider openai_compat \
-  --base-url http://127.0.0.1:5000/v1
+  --base-url http://127.0.0.1:11434/v1
 ```
 
 ---
@@ -84,10 +84,18 @@ devwayfinder init . --template python --force
 
 ### 3.1 OpenAI-Compatible Local Endpoint
 
+Supported local examples:
+
+- `http://127.0.0.1:11434/v1` (Ollama default)
+- `http://127.0.0.1:11435/v1` (Ollama alternate)
+- `http://127.0.0.1:5000/v1` (text-generation-webui)
+- `http://127.0.0.1:1234/v1` (LM Studio)
+- `http://127.0.0.1:8000/v1` (vLLM)
+
 ```bash
 devwayfinder test-model \
   --provider openai_compat \
-  --base-url http://127.0.0.1:5000/v1
+  --base-url http://127.0.0.1:11434/v1
 ```
 
 ### 3.2 Ollama
