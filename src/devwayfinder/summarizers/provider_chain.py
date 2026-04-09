@@ -61,6 +61,12 @@ class ProviderChain:
         Returns:
             Tuple of (provider_name, summary or None if all failed)
         """
+        if not self.providers:
+            logger.debug(
+                "No providers configured; skipping provider chain for %s", context.module_name
+            )
+            return "none", None
+
         last_error: str | None = None
 
         # Try each configured provider in order

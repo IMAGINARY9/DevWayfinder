@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from devwayfinder.version import get_version
+
 
 def test_pyproject_metadata_contains_release_fields() -> None:
     """Pyproject should include metadata required for distribution."""
@@ -27,6 +29,13 @@ def test_pyproject_metadata_contains_release_fields() -> None:
     assert "scripts" in project
     assert "devwayfinder" in project["scripts"]
     assert project["scripts"]["devwayfinder"] == "devwayfinder.__main__:main"
+
+
+def test_runtime_version_matches_pyproject_metadata() -> None:
+    """Runtime version helper should stay aligned with pyproject metadata."""
+    pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+    assert get_version() == data["project"]["version"]
 
 
 @pytest.mark.slow

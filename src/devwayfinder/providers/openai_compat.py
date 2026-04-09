@@ -18,6 +18,7 @@ class OpenAICompatProvider(BaseProvider):
 
     def __init__(self, config: ProviderConfig) -> None:
         super().__init__(config)
+        self._discovered_model: str | None = None
 
     @property
     def available(self) -> bool:
@@ -31,7 +32,7 @@ class OpenAICompatProvider(BaseProvider):
         return headers
 
     def _model_name(self) -> str:
-        return self.config.model_name or "default"
+        return self.config.model_name or self._discovered_model or "default"
 
     async def summarize(self, context: SummarizationContext) -> str:
         """Generate a summary using chat completions."""
@@ -53,6 +54,12 @@ class OpenAICompatProvider(BaseProvider):
         response, latency_ms = await self._timed_health_request("GET", "/models")
         payload = response.json()
         models = [item.get("id") for item in payload.get("data", []) if isinstance(item, dict)]
+        discovered = next(
+            (str(model) for model in models if isinstance(model, str) and model), None
+        )
+        if discovered:
+            self._discovered_model = discovered
+
         message = "OpenAI-compatible endpoint reachable"
         if models:
             message += f" ({len(models)} model(s) listed)"

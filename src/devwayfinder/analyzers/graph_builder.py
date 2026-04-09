@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING
 
 from devwayfinder.analyzers.base import AnalyzerRegistry
@@ -18,6 +19,11 @@ if TYPE_CHECKING:
     from devwayfinder.core.protocols import AnalysisResult
 
 logger = logging.getLogger(__name__)
+
+SCRIPT_TAG_PATTERN = re.compile(
+    r"<script(?P<attrs>[^>]*?)\bsrc\s*=\s*['\"](?P<src>[^'\"]+)['\"][^>]*>",
+    re.IGNORECASE,
+)
 
 
 class ImportResolver:
@@ -169,6 +175,7 @@ class GraphBuilder:
         self,
         exclude_patterns: list[str] | None = None,
         respect_gitignore: bool = True,
+        include_hidden: bool = False,
     ) -> None:
         """
         Initialize graph builder.
@@ -176,9 +183,11 @@ class GraphBuilder:
         Args:
             exclude_patterns: Patterns to exclude from analysis
             respect_gitignore: Whether to respect .gitignore
+            include_hidden: Whether hidden files/directories should be included
         """
         self.exclude_patterns = exclude_patterns
         self.respect_gitignore = respect_gitignore
+        self.include_hidden = include_hidden
         self._setup_analyzers()
 
     def _setup_analyzers(self) -> None:
@@ -202,6 +211,7 @@ class GraphBuilder:
         self.structure_analyzer = StructureAnalyzer(
             exclude_patterns=self.exclude_patterns,
             respect_gitignore=self.respect_gitignore,
+            include_hidden=self.include_hidden,
         )
 
     async def build(self, root_path: Path) -> tuple[Project, DependencyGraph]:
@@ -251,8 +261,17 @@ class GraphBuilder:
                 if target_path and target_path in analysis_results:
                     graph.add_dependency(file_path, target_path, kind="import")
 
+        script_order_edges = self._add_script_tag_dependencies(
+            root_path=root_path,
+            analysis_results=analysis_results,
+            project=project,
+            graph=graph,
+        )
+
         # Log stats
         logger.info(f"Built graph: {graph.node_count} modules, {graph.edge_count} dependencies")
+        if script_order_edges:
+            logger.info("Added %d script-order dependencies from index.html", script_order_edges)
 
         if graph.has_cycles():
             cycles = graph.find_cycles()
@@ -302,11 +321,77 @@ class GraphBuilder:
             entry_point=is_entry,
         )
 
+    def _add_script_tag_dependencies(
+        self,
+        *,
+        root_path: Path,
+        analysis_results: dict[Path, AnalysisResult],
+        project: Project,
+        graph: DependencyGraph,
+    ) -> int:
+        """Infer dependencies from non-module script-tag load order in index.html."""
+        html_path = root_path / "index.html"
+        if not html_path.is_file():
+            return 0
+
+        try:
+            html = html_path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            return 0
+
+        script_files: list[Path] = []
+        for match in SCRIPT_TAG_PATTERN.finditer(html):
+            attrs = match.group("attrs").lower()
+            if 'type="module"' in attrs or "type='module'" in attrs:
+                continue
+
+            src = match.group("src").strip()
+            if not src or src.startswith(("http://", "https://", "//")):
+                continue
+
+            normalized_src = src.split("#", 1)[0].split("?", 1)[0].strip()
+            if not normalized_src:
+                continue
+
+            if normalized_src.startswith("/"):
+                candidate = (root_path / normalized_src.lstrip("/")).resolve()
+            else:
+                candidate = (html_path.parent / normalized_src).resolve()
+
+            if candidate not in analysis_results:
+                continue
+
+            if candidate not in script_files:
+                script_files.append(candidate)
+
+        if not script_files:
+            return 0
+
+        # The final script in an ordered chain is usually the bootstrap module.
+        bootstrap = script_files[-1]
+        bootstrap_module = project.modules.get(str(bootstrap))
+        if bootstrap_module is not None:
+            bootstrap_module.entry_point = True
+
+        added_edges = 0
+        for i in range(1, len(script_files)):
+            current = script_files[i]
+            previous = script_files[i - 1]
+
+            if any(dep.path == previous for dep in graph.get_dependencies(current)):
+                continue
+
+            graph.add_dependency(current, previous, kind="script_order")
+            added_edges += 1
+
+        return added_edges
+
 
 async def build_dependency_graph(
     root_path: Path,
     exclude_patterns: list[str] | None = None,
     respect_gitignore: bool = True,
+    include_hidden: bool = False,
 ) -> tuple[Project, DependencyGraph]:
     """
     Build project and dependency graph from a directory.
@@ -317,6 +402,7 @@ async def build_dependency_graph(
         root_path: Root directory to analyze
         exclude_patterns: Patterns to exclude
         respect_gitignore: Whether to respect .gitignore
+        include_hidden: Whether hidden files/directories should be included
 
     Returns:
         Tuple of (Project, DependencyGraph)
@@ -324,5 +410,6 @@ async def build_dependency_graph(
     builder = GraphBuilder(
         exclude_patterns=exclude_patterns,
         respect_gitignore=respect_gitignore,
+        include_hidden=include_hidden,
     )
     return await builder.build(root_path)

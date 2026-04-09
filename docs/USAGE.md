@@ -68,6 +68,12 @@ Validate provider health and completion:
 devwayfinder test-model --provider ollama --model mistral:7b
 ```
 
+Behavior notes:
+
+- Health and completion checks run against the same provider family.
+- If `--model` is omitted, DevWayfinder will reuse the first discovered model from the health response when possible.
+- HTTP failures include method, path, status, and response preview for faster diagnosis.
+
 ### 2.4 `init`
 
 Initialize `.devwayfinder/config.yaml` using built-in project templates:
@@ -98,12 +104,22 @@ devwayfinder test-model \
   --base-url http://127.0.0.1:11434/v1
 ```
 
+Endpoint contract:
+
+- Health probe: `GET /models`
+- Completion probe: `POST /chat/completions`
+
 ### 3.2 Ollama
 
 ```bash
 ollama pull mistral:7b
 devwayfinder test-model --provider ollama --model mistral:7b
 ```
+
+Endpoint contract:
+
+- Health probe: `GET /api/tags`
+- Completion probe: `POST /api/generate`
 
 ### 3.3 Official OpenAI
 

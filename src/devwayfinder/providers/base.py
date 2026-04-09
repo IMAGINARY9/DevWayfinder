@@ -89,8 +89,20 @@ class BaseProvider(ABC):
             return response
         except RateLimitError:
             raise
-        except httpx.HTTPError as exc:
-            raise ConnectionError(self.name, str(client.base_url), str(exc)) from exc
+        except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code
+            preview = exc.response.text.replace("\n", " ").strip()
+            if len(preview) > 220:
+                preview = preview[:217] + "..."
+
+            reason = f"{method.upper()} {path} -> HTTP {status}"
+            if preview:
+                reason = f"{reason}; response={preview}"
+
+            raise ConnectionError(self.name, str(client.base_url), reason) from exc
+        except httpx.RequestError as exc:
+            reason = f"{method.upper()} {path} failed: {exc}"
+            raise ConnectionError(self.name, str(client.base_url), reason) from exc
 
     async def _timed_health_request(self, method: str, path: str) -> tuple[httpx.Response, float]:
         """Execute a health request and return response with latency."""

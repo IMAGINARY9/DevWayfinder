@@ -4,7 +4,9 @@ DevWayfinder — AI-Powered Developer Onboarding Generator
 Clone a repository → run the tool → get a structured onboarding guide.
 """
 
-__version__ = "0.3.0"
+from devwayfinder.version import get_version
+
+__version__ = get_version()
 __author__ = "IMAGINARY9"
 
 # Public API exports will be added as modules are implemented

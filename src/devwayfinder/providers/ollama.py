@@ -18,6 +18,7 @@ class OllamaProvider(BaseProvider):
 
     def __init__(self, config: ProviderConfig) -> None:
         super().__init__(config)
+        self._discovered_model: str | None = None
 
     @property
     def available(self) -> bool:
@@ -25,7 +26,7 @@ class OllamaProvider(BaseProvider):
         return self.config.resolved_base_url() is not None
 
     def _model_name(self) -> str:
-        return self.config.model_name or "mistral:7b"
+        return self.config.model_name or self._discovered_model or "mistral:7b"
 
     async def summarize(self, context: SummarizationContext) -> str:
         """Generate a summary using Ollama's generate API."""
@@ -54,6 +55,12 @@ class OllamaProvider(BaseProvider):
         response, latency_ms = await self._timed_health_request("GET", "/api/tags")
         payload = response.json()
         models = [item.get("name") for item in payload.get("models", []) if isinstance(item, dict)]
+        discovered = next(
+            (str(model) for model in models if isinstance(model, str) and model), None
+        )
+        if discovered:
+            self._discovered_model = discovered
+
         message = "Ollama endpoint reachable"
         if models:
             message += f" ({len(models)} model(s) available)"

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from typer.testing import CliRunner
 
 from devwayfinder.cli.app import app
+from devwayfinder.version import get_version
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -28,6 +29,7 @@ class TestVersionCommand:
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
         assert "DevWayfinder version" in result.output
+        assert get_version() in result.output
 
 
 class TestAnalyzeCommand:
@@ -76,6 +78,25 @@ class TestAnalyzeCommand:
         assert "graph" in result.output
         assert "node_count" in result.output
 
+    def test_analyze_respects_project_config_excludes(self, tmp_path: Path) -> None:
+        """Analyze should merge and apply exclude patterns from .devwayfinder/config.yaml."""
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "main.py").write_text("def main():\n    return 1\n")
+
+        (tmp_path / "generated").mkdir()
+        (tmp_path / "generated" / "noise.py").write_text("def noise():\n    return 2\n")
+
+        config_dir = tmp_path / ".devwayfinder"
+        config_dir.mkdir()
+        (config_dir / "config.yaml").write_text(
+            "analysis:\n  exclude_patterns:\n    - generated\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["analyze", str(tmp_path), "--json"])
+        assert result.exit_code == 0
+        assert '"file_count": 1' in result.output
+
 
 class TestGenerateCommand:
     """Tests for the generate command."""
@@ -111,6 +132,7 @@ class TestGenerateCommand:
         assert "Generation complete" in result.output or "Generated guide" in result.output
         assert "Preflight Estimate" in result.output
         assert "Cost (estimated)" in result.output
+        assert "All providers failed" not in result.output
 
     def test_generate_to_file(self, tmp_path: Path) -> None:
         """Test generate command writes output to file."""

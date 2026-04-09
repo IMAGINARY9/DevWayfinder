@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 from typer.testing import CliRunner
 
 from devwayfinder.cli.app import app
+from devwayfinder.core.exceptions import ConnectionError as ProviderConnectionError
 from devwayfinder.core.protocols import SummarizationContext
 from devwayfinder.providers import create_provider
 from devwayfinder.providers.config import ProviderConfig, normalize_provider_name
@@ -55,6 +58,30 @@ async def test_openai_compat_health_check(respx_mock: object) -> None:
 
 
 @pytest.mark.asyncio
+async def test_openai_compat_uses_discovered_model_for_completion(respx_mock: object) -> None:
+    """Completion should use model discovered during health-check when no model is configured."""
+    captured_payload: dict[str, object] = {}
+
+    respx_mock.get("http://127.0.0.1:5000/v1/models").mock(
+        return_value=httpx.Response(200, json={"data": [{"id": "discovered-model"}]})
+    )
+
+    def _capture(request: httpx.Request) -> httpx.Response:
+        captured_payload.update(json.loads(request.content.decode("utf-8")))
+        return httpx.Response(200, json={"choices": [{"message": {"content": "summary"}}]})
+
+    respx_mock.post("http://127.0.0.1:5000/v1/chat/completions").mock(side_effect=_capture)
+
+    provider = OpenAICompatProvider(ProviderConfig(provider="openai_compat", model_name=None))
+    await provider.health_check()
+    summary = await provider.summarize(SummarizationContext(module_name="src/main.py"))
+
+    assert summary == "summary"
+    assert captured_payload.get("model") == "discovered-model"
+    await provider.close()
+
+
+@pytest.mark.asyncio
 async def test_ollama_health_check(respx_mock: object) -> None:
     """Ollama provider should report available models from the tags endpoint."""
     respx_mock.get("http://localhost:11434/api/tags").mock(
@@ -69,6 +96,47 @@ async def test_ollama_health_check(respx_mock: object) -> None:
 
     assert health.healthy is True
     assert health.model_info["models"] == ["mistral:7b"]
+    await provider.close()
+
+
+@pytest.mark.asyncio
+async def test_ollama_uses_discovered_model_for_completion(respx_mock: object) -> None:
+    """Ollama completion should default to the model discovered during health-check."""
+    captured_payload: dict[str, object] = {}
+
+    respx_mock.get("http://localhost:11434/api/tags").mock(
+        return_value=httpx.Response(200, json={"models": [{"name": "qwen2.5:7b"}]})
+    )
+
+    def _capture(request: httpx.Request) -> httpx.Response:
+        captured_payload.update(json.loads(request.content.decode("utf-8")))
+        return httpx.Response(200, json={"response": "ok"})
+
+    respx_mock.post("http://localhost:11434/api/generate").mock(side_effect=_capture)
+
+    provider = OllamaProvider(ProviderConfig(provider="ollama", model_name=None))
+    await provider.health_check()
+    summary = await provider.summarize(SummarizationContext(module_name="src/main.py"))
+
+    assert summary == "ok"
+    assert captured_payload.get("model") == "qwen2.5:7b"
+    await provider.close()
+
+
+@pytest.mark.asyncio
+async def test_openai_compat_error_includes_method_path_and_status(respx_mock: object) -> None:
+    """Provider errors should include HTTP method, path, and status code for diagnostics."""
+    respx_mock.post("http://127.0.0.1:5000/v1/chat/completions").mock(
+        return_value=httpx.Response(404, json={"error": "not found"})
+    )
+
+    provider = OpenAICompatProvider(ProviderConfig(provider="openai_compat", model_name="missing"))
+
+    with pytest.raises(ProviderConnectionError) as exc:
+        await provider.summarize(SummarizationContext(module_name="src/main.py"))
+
+    message = str(exc.value)
+    assert "POST /chat/completions -> HTTP 404" in message
     await provider.close()
 
 

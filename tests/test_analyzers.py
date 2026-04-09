@@ -134,6 +134,25 @@ class TestStructureAnalyzer:
         assert "file.pyc" not in source_names
 
     @pytest.mark.asyncio
+    async def test_excludes_virtualenv_like_directories(self, tmp_path: Path) -> None:
+        """Virtualenv variants should be excluded even when directory names are not exact matches."""
+        project = tmp_path / "proj"
+        source_dir = project / "src"
+        source_dir.mkdir(parents=True)
+        (source_dir / "main.py").write_text("print('ok')")
+
+        env_file = project / ".venv-dwf-eval" / "Lib" / "site-packages" / "noise.py"
+        env_file.parent.mkdir(parents=True)
+        env_file.write_text("print('noise')")
+
+        analyzer = StructureAnalyzer()
+        info = await analyzer.analyze(project)
+
+        source_paths = {p.as_posix() for p in info.source_files}
+        assert any(path.endswith("src/main.py") for path in source_paths)
+        assert not any("site-packages" in path for path in source_paths)
+
+    @pytest.mark.asyncio
     async def test_nonexistent_path(self, tmp_path: Path) -> None:
         """Test error handling for non-existent path."""
         analyzer = StructureAnalyzer()
@@ -552,6 +571,43 @@ class TestGraphBuilder:
         deps = graph.get_dependencies((pkg / "a.py").resolve())
         dep_names = {dep.name for dep in deps}
         assert "b" in dep_names
+
+    @pytest.mark.asyncio
+    async def test_script_tag_order_infers_dependencies(self, tmp_path: Path) -> None:
+        """Script order from index.html should produce dependency edges for non-module apps."""
+        proj = tmp_path / "proj"
+        src = proj / "src"
+        src.mkdir(parents=True)
+
+        (src / "vendor.js").write_text("window.shared = {};\n")
+        (src / "app.js").write_text("window.shared.app = true;\n")
+        (src / "main.js").write_text("window.shared.main = true;\n")
+        (proj / "index.html").write_text(
+            "\n".join(
+                [
+                    "<!doctype html>",
+                    "<html><head>",
+                    '<script src="src/vendor.js"></script>',
+                    '<script src="src/app.js"></script>',
+                    '<script src="src/main.js"></script>',
+                    "</head><body></body></html>",
+                ]
+            )
+        )
+
+        builder = GraphBuilder()
+        project, graph = await builder.build(proj)
+
+        vendor_path = (src / "vendor.js").resolve()
+        app_path = (src / "app.js").resolve()
+        main_path = (src / "main.js").resolve()
+
+        main_deps = {dep.path for dep in graph.get_dependencies(main_path)}
+        app_deps = {dep.path for dep in graph.get_dependencies(app_path)}
+
+        assert app_path in main_deps
+        assert vendor_path in app_deps
+        assert project.modules[str(main_path)].entry_point is True
 
 
 class TestBuildDependencyGraph:

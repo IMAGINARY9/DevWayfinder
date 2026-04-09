@@ -6,6 +6,7 @@ import asyncio
 from pathlib import Path
 
 import typer
+import yaml
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
@@ -19,6 +20,7 @@ from devwayfinder.core.protocols import SummarizationContext
 from devwayfinder.generators import GenerationConfig, GuideGenerator
 from devwayfinder.providers import create_provider, load_provider_config, supported_providers
 from devwayfinder.utils.tokens import TokenEstimate, estimate_cost
+from devwayfinder.version import get_version
 
 app = typer.Typer(
     name="devwayfinder",
@@ -119,6 +121,9 @@ async def _generate_async(
         console.print(f"[red]Error:[/red] Path is not a directory: {project_path}")
         raise typer.Exit(code=1)
 
+    project_excludes, include_hidden, config_path = _load_project_analysis_settings(project_path)
+    merged_excludes = _merge_patterns(GenerationConfig().exclude_patterns, project_excludes)
+
     console.print(
         Panel.fit(
             f"[bold blue]DevWayfinder[/bold blue]\n"
@@ -126,6 +131,9 @@ async def _generate_async(
             border_style="blue",
         )
     )
+
+    if verbose and config_path is not None:
+        console.print(f"[dim]Loaded analysis config: {config_path}[/dim]")
 
     # Build LLM provider if needed
     providers = []
@@ -150,7 +158,11 @@ async def _generate_async(
 
     try:
         # Pre-flight estimate so users can budget expensive runs.
-        estimated_modules = await _estimate_module_count(project_path)
+        estimated_modules = await _estimate_module_count(
+            project_path,
+            exclude_patterns=merged_excludes,
+            include_hidden=include_hidden,
+        )
         preflight = _estimate_preflight_cost(
             module_count=estimated_modules,
             model_name=providers[0].name if providers else "heuristic",
@@ -172,6 +184,8 @@ async def _generate_async(
             gen_config = GenerationConfig(
                 use_llm=not no_llm,
                 providers=providers,
+                include_hidden=include_hidden,
+                exclude_patterns=merged_excludes,
                 include_mermaid=True,
                 template_path=Path(guide_template).resolve() if guide_template else None,
             )
@@ -240,9 +254,17 @@ async def _generate_async(
                 await close_method()
 
 
-async def _estimate_module_count(project_path: Path) -> int:
+async def _estimate_module_count(
+    project_path: Path,
+    *,
+    exclude_patterns: list[str] | None = None,
+    include_hidden: bool = False,
+) -> int:
     """Estimate number of source modules before generation."""
-    analyzer = StructureAnalyzer()
+    analyzer = StructureAnalyzer(
+        exclude_patterns=exclude_patterns,
+        include_hidden=include_hidden,
+    )
     info = await analyzer.analyze(project_path)
     return len(info.source_files)
 
@@ -312,6 +334,8 @@ async def _analyze_async(*, path: str, output_json: bool, verbose: bool) -> None
         console.print(f"[red]Error:[/red] Path is not a directory: {project_path}")
         raise typer.Exit(code=1)
 
+    project_excludes, include_hidden, config_path = _load_project_analysis_settings(project_path)
+
     console.print(
         Panel.fit(
             f"[bold blue]DevWayfinder[/bold blue]\nAnalyzing: [cyan]{project_path.name}[/cyan]",
@@ -327,13 +351,19 @@ async def _analyze_async(*, path: str, output_json: bool, verbose: bool) -> None
         ) as progress:
             # Structure analysis
             task = progress.add_task("[cyan]Analyzing project structure...", total=None)
-            structure_analyzer = StructureAnalyzer()
+            structure_analyzer = StructureAnalyzer(
+                exclude_patterns=project_excludes,
+                include_hidden=include_hidden,
+            )
             structure = await structure_analyzer.analyze(project_path)
             progress.update(task, description="[green]Structure analysis complete!")
 
             # Build dependency graph
             task2 = progress.add_task("[cyan]Building dependency graph...", total=None)
-            graph_builder = GraphBuilder()
+            graph_builder = GraphBuilder(
+                exclude_patterns=project_excludes,
+                include_hidden=include_hidden,
+            )
             project, graph = await graph_builder.build(project_path)
             progress.update(task2, description="[green]Dependency graph complete!")
 
@@ -400,6 +430,8 @@ async def _analyze_async(*, path: str, output_json: bool, verbose: bool) -> None
 
             # Graph info
             if verbose:
+                if config_path is not None:
+                    console.print(f"\n[dim]Using config: {config_path}[/dim]")
                 console.print("\n[bold]Core Modules:[/bold]")
                 core_modules = graph.get_core_modules(threshold=3)
                 for module in core_modules[:10]:
@@ -542,9 +574,7 @@ def init(
 @app.command()
 def version() -> None:
     """Show DevWayfinder version."""
-    from devwayfinder import __version__
-
-    console.print(f"DevWayfinder version {__version__}")
+    console.print(f"DevWayfinder version {get_version()}")
 
 
 if __name__ == "__main__":
@@ -613,3 +643,54 @@ async def _test_model_async(
         close_method = getattr(llm_provider, "close", None)
         if callable(close_method):
             await close_method()
+
+
+def _merge_patterns(base_patterns: list[str], additional_patterns: list[str]) -> list[str]:
+    """Merge two pattern lists while preserving order."""
+    merged = list(base_patterns)
+    for pattern in additional_patterns:
+        if pattern not in merged:
+            merged.append(pattern)
+    return merged
+
+
+def _find_project_config_path(project_path: Path) -> Path | None:
+    """Find .devwayfinder/config.yaml in current path or ancestors."""
+    roots = [project_path]
+    roots.extend(project_path.parents)
+    for root in roots:
+        candidate = root / ".devwayfinder" / "config.yaml"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _load_project_analysis_settings(project_path: Path) -> tuple[list[str], bool, Path | None]:
+    """Load analysis exclude/include settings from local project config when available."""
+    config_path = _find_project_config_path(project_path)
+    if config_path is None:
+        return [], False, None
+
+    try:
+        raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as exc:
+        console.print(
+            f"[yellow]Warning:[/yellow] Failed to parse {config_path}: {exc}. "
+            "Continuing with default analysis settings."
+        )
+        return [], False, config_path
+
+    if not isinstance(raw, dict):
+        return [], False, config_path
+
+    analysis = raw.get("analysis")
+    if not isinstance(analysis, dict):
+        return [], False, config_path
+
+    loaded_patterns: list[str] = []
+    exclude_patterns = analysis.get("exclude_patterns")
+    if isinstance(exclude_patterns, list):
+        loaded_patterns = [item.strip() for item in exclude_patterns if isinstance(item, str)]
+
+    include_hidden = bool(analysis.get("include_hidden", False))
+    return loaded_patterns, include_hidden, config_path

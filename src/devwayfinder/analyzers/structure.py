@@ -105,16 +105,28 @@ ENTRY_POINT_PATTERNS: list[str] = [
 # Default exclude patterns
 DEFAULT_EXCLUDES: list[str] = [
     "__pycache__",
+    "__pypackages__",
     "*.pyc",
     "*.pyo",
     ".git",
     ".hg",
     ".svn",
     "node_modules",
+    "site-packages",
+    "pip-wheel-metadata",
+    "conda-meta",
     "venv",
+    "venv*",
     ".venv",
+    ".venv*",
     "env",
+    "env*",
     ".env",
+    ".direnv",
+    ".conda",
+    ".mamba",
+    ".pixi",
+    ".uv",
     "dist",
     "build",
     "*.egg-info",
@@ -224,6 +236,7 @@ class StructureAnalyzer:
         self,
         exclude_patterns: list[str] | None = None,
         respect_gitignore: bool = True,
+        include_hidden: bool = False,
     ) -> None:
         """
         Initialize structure analyzer.
@@ -231,11 +244,15 @@ class StructureAnalyzer:
         Args:
             exclude_patterns: Additional glob patterns to exclude
             respect_gitignore: Whether to parse and respect .gitignore
+            include_hidden: Whether to include hidden files/directories
         """
-        self.exclude_patterns = list(DEFAULT_EXCLUDES)
+        merged_patterns = list(DEFAULT_EXCLUDES)
         if exclude_patterns:
-            self.exclude_patterns.extend(exclude_patterns)
+            merged_patterns.extend(exclude_patterns)
+        # Preserve order while removing duplicates.
+        self.exclude_patterns = list(dict.fromkeys(merged_patterns))
         self.respect_gitignore = respect_gitignore
+        self.include_hidden = include_hidden
         self._gitignore_patterns: list[str] = []
 
     async def analyze(self, root_path: Path) -> StructureInfo:
@@ -298,14 +315,27 @@ class StructureAnalyzer:
         try:
             rel_path = path.relative_to(root_path)
             rel_str = str(rel_path).replace("\\", "/")
+            rel_parts = rel_str.split("/")
         except ValueError:
             rel_str = name
+            rel_parts = [name]
+
+        # Hidden paths are excluded by default unless explicitly requested.
+        if not self.include_hidden and name.startswith(".") and name not in {".", ".."}:
+            return True
 
         # Check default patterns
         for pattern in self.exclude_patterns:
             if fnmatch.fnmatch(name, pattern):
                 return True
             if fnmatch.fnmatch(rel_str, pattern):
+                return True
+            if (
+                "/" not in pattern
+                and "\\" not in pattern
+                and not any(ch in pattern for ch in "*?[]")
+                and pattern in rel_parts
+            ):
                 return True
 
         # Check gitignore patterns
@@ -475,6 +505,7 @@ async def analyze_structure(
     path: Path,
     exclude_patterns: list[str] | None = None,
     respect_gitignore: bool = True,
+    include_hidden: bool = False,
 ) -> StructureInfo:
     """
     Analyze project structure.
@@ -483,6 +514,7 @@ async def analyze_structure(
         path: Root directory path
         exclude_patterns: Additional patterns to exclude
         respect_gitignore: Whether to respect .gitignore
+        include_hidden: Whether to include hidden files/directories
 
     Returns:
         StructureInfo with analysis results
@@ -490,5 +522,6 @@ async def analyze_structure(
     analyzer = StructureAnalyzer(
         exclude_patterns=exclude_patterns,
         respect_gitignore=respect_gitignore,
+        include_hidden=include_hidden,
     )
     return await analyzer.analyze(path)
