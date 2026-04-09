@@ -117,6 +117,8 @@ class TestGenerateCommand:
         assert "--no-llm" in output
         assert "--model-provider" in output
         assert "--guide-template" in output
+        assert "--quality" in output
+        assert "--auto" in output
 
     def test_generate_heuristic_mode(self, tmp_path: Path) -> None:
         """Test generate command with heuristics only."""
@@ -182,6 +184,54 @@ sections:
 
         assert result.exit_code == 0
         assert "Read This First" in result.output
+
+    def test_generate_invalid_quality_profile(self, tmp_path: Path) -> None:
+        """Generate should fail fast for unsupported quality profiles."""
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "main.py").write_text("def main():\n    pass\n")
+
+        result = runner.invoke(
+            app,
+            ["generate", str(tmp_path), "--no-llm", "--quality", "ultra"],
+        )
+
+        assert result.exit_code == 1
+        assert "Unsupported quality profile" in result.output
+
+
+class TestGuideCommand:
+    """Tests for the guided one-command workflow."""
+
+    def test_guide_help(self) -> None:
+        """Guide command help should expose guided workflow options."""
+        result = runner.invoke(app, ["guide", "--help"], color=False)
+        output = strip_ansi(result.output)
+
+        assert result.exit_code == 0
+        assert "one-command" in output.lower()
+        assert "--quality" in output
+        assert "--auto" in output
+
+    def test_guide_writes_default_outputs(self, tmp_path: Path) -> None:
+        """Guide command should emit both guide and concise run report by default."""
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "main.py").write_text(
+            '"""Main module."""\n\ndef main():\n    pass\n\nif __name__ == "__main__":\n    main()\n'
+        )
+        (tmp_path / "README.md").write_text("python -m src.main\npytest\n")
+
+        result = runner.invoke(
+            app,
+            ["guide", str(tmp_path), "--no-llm", "--quality", "fast"],
+        )
+
+        guide_output = tmp_path / "ONBOARDING_GUIDE.md"
+        run_report = tmp_path / ".devwayfinder" / "run_report.md"
+
+        assert result.exit_code == 0
+        assert guide_output.exists()
+        assert run_report.exists()
+        assert "Run report written to" in result.output
 
 
 class TestTestModelCommand:

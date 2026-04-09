@@ -2,7 +2,7 @@
 
 > **Version:** 1.1.0  
 > **Status:** Active  
-> **Last Updated:** 2026-04-01  
+> **Last Updated:** 2026-04-09  
 > **Authoritative Source:** This document is the single source of truth for configuration options.
 
 ---
@@ -13,6 +13,8 @@ DevWayfinder currently supports two runtime configuration surfaces:
 
 1. **Provider runtime settings** (CLI + environment variables)
 2. **Guide layout templates** via `.devwayfinder/template.yaml`
+
+Runtime generation quality is controlled via CLI profile flags (`--quality deep|balanced|fast`).
 
 `devwayfinder init` still scaffolds `.devwayfinder/config.yaml`, but full runtime loading of that file hierarchy remains planned follow-up work.
 
@@ -68,11 +70,23 @@ DEVWAYFINDER_MODEL_TEMPERATURE=0.3
 
 ```bash
 devwayfinder generate ./project \
+  --quality deep \
   --model-provider openai_compat \
   --model-name mistral \
   --base-url http://127.0.0.1:5000/v1 \
   --api-key local
 ```
+
+Guided workflow shortcut:
+
+```bash
+devwayfinder guide ./project --auto --quality deep
+```
+
+Notes:
+
+- `--quality fast` is optimized for speed and uses heuristic mode.
+- `--auto` probes common local endpoints and selects the first healthy provider.
 
 ---
 

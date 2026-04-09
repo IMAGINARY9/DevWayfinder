@@ -188,6 +188,7 @@ class GraphBuilder:
         self.exclude_patterns = exclude_patterns
         self.respect_gitignore = respect_gitignore
         self.include_hidden = include_hidden
+        self.last_structure: StructureInfo | None = None
         self._setup_analyzers()
 
     def _setup_analyzers(self) -> None:
@@ -229,6 +230,7 @@ class GraphBuilder:
         # Analyze structure
         logger.info(f"Analyzing project structure: {root_path}")
         structure = await self.structure_analyzer.analyze(root_path)
+        self.last_structure = structure
 
         # Create project
         project = self._create_project(structure)

@@ -113,18 +113,35 @@ class BaseProvider(ABC):
 
     def _prompt_messages(self, context: SummarizationContext) -> list[dict[str, str]]:
         """Build a consistent prompt for chat-completion style providers."""
+        quality_profile = context.metadata.get("quality_profile", "balanced")
+        minimum_words = context.metadata.get("minimum_summary_words", 0)
+        minimum_words_value = 0
+        if isinstance(minimum_words, int):
+            minimum_words_value = max(0, minimum_words)
+        elif isinstance(minimum_words, str) and minimum_words.strip().isdigit():
+            minimum_words_value = max(0, int(minimum_words.strip()))
+
+        length_instruction = (
+            f"Write at least {minimum_words_value} words."
+            if minimum_words_value > 0
+            else "Write 2-4 sentences."
+        )
+
         return [
             {
                 "role": "system",
                 "content": (
-                    "You are generating concise onboarding summaries for developers. "
-                    "Explain the role of a code module, its responsibilities, and why it matters."
+                    "You generate onboarding summaries for developers joining an unfamiliar codebase. "
+                    "Focus on responsibilities, runtime behavior, and concrete navigation advice. "
+                    "Avoid generic filler and restating file names. "
+                    f"Current quality profile: {quality_profile}."
                 ),
             },
             {
                 "role": "user",
                 "content": (
-                    "Summarize this module in 2-4 sentences for a developer new to the project.\n\n"
+                    "Summarize this module for a developer new to the project. "
+                    f"{length_instruction}\n\n"
                     f"{context.to_prompt_context()}"
                 ),
             },

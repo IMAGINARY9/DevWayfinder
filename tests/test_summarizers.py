@@ -465,6 +465,60 @@ class TestSummarizationController:
         assert result.summary == "This is a mock summary."
 
     @pytest.mark.asyncio
+    async def test_quality_retry_for_short_summary(
+        self,
+        project_root: Path,
+        sample_module: Module,
+    ) -> None:
+        """Short summaries should trigger one quality retry on the same provider."""
+        provider = MagicMock()
+        provider.name = "retry_provider"
+        provider.summarize = AsyncMock(
+            side_effect=[
+                "Too short.",
+                "This expanded summary explains responsibilities, flow, and why the module matters.",
+            ]
+        )
+
+        config = SummarizationConfig(
+            providers=[provider],
+            minimum_summary_words=8,
+            max_retries=1,
+        )
+        controller = SummarizationController(project_root, config)
+
+        result = await controller.summarize_module(sample_module)
+
+        assert result.success
+        assert result.provider_used == "retry_provider"
+        assert len(result.summary.split()) >= 8
+        assert provider.summarize.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_quality_retry_falls_back_when_still_short(
+        self,
+        project_root: Path,
+        sample_module: Module,
+    ) -> None:
+        """If retry remains too short, controller should fall back to heuristic summary."""
+        provider = MagicMock()
+        provider.name = "short_provider"
+        provider.summarize = AsyncMock(side_effect=["short", "still short"])
+
+        config = SummarizationConfig(
+            providers=[provider],
+            minimum_summary_words=5,
+            use_heuristic_fallback=True,
+            max_retries=1,
+        )
+        controller = SummarizationController(project_root, config)
+
+        result = await controller.summarize_module(sample_module)
+
+        assert result.success
+        assert result.provider_used == "heuristic"
+
+    @pytest.mark.asyncio
     async def test_heuristic_only(
         self,
         project_root: Path,

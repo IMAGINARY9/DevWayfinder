@@ -24,9 +24,9 @@ devwayfinder test-model --provider ollama --model mistral:7b
 ### 3. Generate Guide
 
 ```bash
-devwayfinder generate ./my-project --no-llm
-# or
-# devwayfinder generate ./my-project --model-provider openai_compat --base-url http://127.0.0.1:11434/v1
+devwayfinder guide ./my-project --auto
+# quick offline mode:
+# devwayfinder guide ./my-project --quality fast --no-llm
 ```
 
 ---
@@ -34,6 +34,7 @@ devwayfinder generate ./my-project --no-llm
 ## Core Commands
 
 - `devwayfinder analyze <path>`
+- `devwayfinder guide <path>`
 - `devwayfinder generate <path>`
 - `devwayfinder test-model`
 - `devwayfinder init`

@@ -9,12 +9,14 @@ This module coordinates:
 from __future__ import annotations
 
 import logging
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from devwayfinder.analyzers.graph_builder import GraphBuilder
+from devwayfinder.analyzers.start_here import get_start_here_recommendations
 from devwayfinder.core.guide import OnboardingGuide, Section, SectionType
 from devwayfinder.generators.guide_template import GuideTemplate, load_guide_template
 from devwayfinder.summarizers import SummarizationConfig, SummarizationController
@@ -22,6 +24,7 @@ from devwayfinder.summarizers import SummarizationConfig, SummarizationControlle
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from devwayfinder.analyzers.structure import StructureInfo
     from devwayfinder.core.graph import DependencyGraph
     from devwayfinder.core.models import Module, Project
     from devwayfinder.core.protocols import ModelProvider
@@ -58,6 +61,12 @@ class GenerationConfig:
     use_llm: bool = True
     providers: list[ModelProvider] = field(default_factory=list)
     max_concurrent_requests: int = 5
+    quality_profile: str = "deep"  # deep | balanced | fast
+    minimum_module_words: int = 0
+    minimum_architecture_words: int = 0
+    minimum_entry_point_words: int = 0
+    llm_architecture_pass: bool = True
+    llm_entry_point_pass: bool = True
 
     # Output options
     include_mermaid: bool = True
@@ -107,6 +116,7 @@ class GuideGenerator:
         """
         self.project_path = project_path.resolve()
         self.config = config or GenerationConfig()
+        self._apply_quality_profile_defaults()
         self.guide_template: GuideTemplate = load_guide_template(
             self.project_path,
             self.config.template_path,
@@ -118,21 +128,65 @@ class GuideGenerator:
         )
 
         # Initialize summarization
+        providers = self.config.providers if self.config.use_llm else []
         summ_config = SummarizationConfig(
-            providers=self.config.providers,
+            providers=providers,
             use_heuristic_fallback=True,
             max_concurrent_requests=self.config.max_concurrent_requests,
+            quality_profile=self.config.quality_profile,
+            minimum_summary_words=self.config.minimum_module_words,
+            minimum_architecture_words=self.config.minimum_architecture_words,
+            minimum_entry_point_words=self.config.minimum_entry_point_words,
         )
         self.summarizer = SummarizationController(self.project_path, summ_config)
 
         # State
         self._project: Project | None = None
         self._graph: DependencyGraph | None = None
+        self._structure_info: StructureInfo | None = None
         self._llm_calls = 0
         self._summary_providers: dict[str, str] = {}
         self._summary_tokens: dict[str, int] = {}
         self._summary_input_tokens: dict[str, int] = {}
         self._summary_output_tokens: dict[str, int] = {}
+        self._architecture_summary: str = ""
+        self._architecture_provider: str = "none"
+        self._entry_point_guidance: dict[str, str] = {}
+        self._entry_point_providers: dict[str, str] = {}
+
+    _QUALITY_PROFILE_DEFAULTS: ClassVar[dict[str, dict[str, int | bool]]] = {
+        "deep": {
+            "use_llm": True,
+            "minimum_module_words": 24,
+            "minimum_architecture_words": 90,
+            "minimum_entry_point_words": 50,
+            "llm_architecture_pass": True,
+            "llm_entry_point_pass": True,
+        },
+        "balanced": {
+            "use_llm": True,
+            "minimum_module_words": 14,
+            "minimum_architecture_words": 60,
+            "minimum_entry_point_words": 32,
+            "llm_architecture_pass": True,
+            "llm_entry_point_pass": True,
+        },
+        "fast": {
+            "use_llm": False,
+            "minimum_module_words": 0,
+            "minimum_architecture_words": 0,
+            "minimum_entry_point_words": 0,
+            "llm_architecture_pass": False,
+            "llm_entry_point_pass": False,
+        },
+    }
+
+    _COMMAND_PREFIX = re.compile(
+        r"^(?:\$\s*)?"
+        r"(python|pytest|pip|poetry|uv|npm|pnpm|yarn|node|bun|"
+        r"make|docker|go|cargo|dotnet|java|mvn|gradle)\b",
+        re.IGNORECASE,
+    )
 
     async def generate(
         self,
@@ -231,6 +285,7 @@ class GuideGenerator:
 
         # Use GraphBuilder to do full analysis
         self._project, self._graph = await self.graph_builder.build(self.project_path)
+        self._structure_info = self.graph_builder.last_structure
 
         logger.info(
             "Analysis complete: %d modules, %d dependencies",
@@ -274,7 +329,64 @@ class GuideGenerator:
             if progress_callback and i % 5 == 0:  # Update every 5 modules
                 progress_callback("summarization", "progress", f"{i}/{total} modules")
 
+        await self._run_higher_level_summaries(progress_callback)
+
         return summaries
+
+    async def _run_higher_level_summaries(
+        self,
+        progress_callback: ProgressCallback | None = None,
+    ) -> None:
+        """Run architecture and entry-point LLM passes for richer onboarding output."""
+        if not self.config.use_llm or not self.config.providers:
+            return
+
+        if self._project and self._structure_info and self.config.llm_architecture_pass:
+            if progress_callback:
+                progress_callback("summarization", "progress", "Architecture synthesis")
+
+            architecture_result = await self.summarizer.summarize_architecture(
+                self._project,
+                self._structure_info,
+                graph=self._graph,
+            )
+            if architecture_result.success and architecture_result.summary:
+                self._architecture_summary = architecture_result.summary
+                self._architecture_provider = architecture_result.provider_used
+                self._summary_tokens["__architecture__"] = architecture_result.tokens_used or 0
+                self._summary_input_tokens["__architecture__"] = (
+                    architecture_result.input_tokens or 0
+                )
+                self._summary_output_tokens["__architecture__"] = (
+                    architecture_result.output_tokens or 0
+                )
+                if architecture_result.provider_used != "heuristic":
+                    self._llm_calls += 1
+
+        if not (self._project and self._graph and self.config.llm_entry_point_pass):
+            return
+
+        if progress_callback:
+            progress_callback("summarization", "progress", "Entry-point guidance synthesis")
+
+        entry_candidates = self._project.entry_points
+        if not entry_candidates:
+            entry_candidates = self._graph.get_entry_points()
+
+        for entry_point in entry_candidates[:3]:
+            result = await self.summarizer.summarize_entry_point(entry_point, graph=self._graph)
+            if not result.success or not result.summary:
+                continue
+
+            key = str(entry_point.path)
+            self._entry_point_guidance[key] = result.summary
+            self._entry_point_providers[key] = result.provider_used
+            token_key = f"__entry::{key}"
+            self._summary_tokens[token_key] = result.tokens_used or 0
+            self._summary_input_tokens[token_key] = result.input_tokens or 0
+            self._summary_output_tokens[token_key] = result.output_tokens or 0
+            if result.provider_used != "heuristic":
+                self._llm_calls += 1
 
     def _assemble_guide(self, summaries: dict[str, str]) -> OnboardingGuide:
         """Assemble the final guide from analysis and summaries."""
@@ -311,6 +423,11 @@ class GuideGenerator:
         """Create the overview section."""
         lines = []
 
+        quality_banner = self._quality_banner_lines()
+        if quality_banner:
+            lines.extend(quality_banner)
+            lines.append("")
+
         if self._project:
             if self._project.primary_language:
                 lines.append(f"**Primary Language:** {self._project.primary_language}")
@@ -341,6 +458,12 @@ class GuideGenerator:
         """Create the architecture section."""
         lines = []
 
+        if self._architecture_summary:
+            lines.append(
+                f"> {self._quality_badge(self._architecture_provider)} {self._architecture_summary}"
+            )
+            lines.append("")
+
         if self._project and self._graph:
             # Directory structure summary
             dirs: dict[str, int] = {}
@@ -368,6 +491,13 @@ class GuideGenerator:
                 lines.append("")
                 for module in core_modules[:5]:
                     lines.append(f"- **{module.name}**: {module.description or 'Core module'}")
+                lines.append("")
+
+            flow_lines = self._runtime_flow_lines()
+            if flow_lines:
+                lines.append("### Runtime Flow Map")
+                lines.append("")
+                lines.extend(flow_lines)
                 lines.append("")
 
             # Circular dependencies warning
@@ -413,12 +543,7 @@ class GuideGenerator:
                     module_lines.append(f"**{module.name}**")
                     if summary:
                         provider_used = self._summary_providers.get(path_str, "heuristic")
-                        if provider_used == "heuristic":
-                            quality_badge = "[heuristic]"
-                        elif provider_used == "none":
-                            quality_badge = "[none]"
-                        else:
-                            quality_badge = "[LLM]"
+                        quality_badge = self._quality_badge(provider_used)
                         module_lines.append(f"> {quality_badge} {summary}")
                     if module.imports:
                         module_lines.append(f"*Imports:* {', '.join(module.imports[:5])}")
@@ -483,33 +608,74 @@ class GuideGenerator:
         lines = []
 
         if self._project and self._graph:
-            entry_points = self._project.entry_points
-            if not entry_points:
-                # Use modules with no incoming dependencies
-                entry_points = self._graph.get_entry_points()
+            recommendations = get_start_here_recommendations(
+                list(self._project.modules.values()),
+                self._graph,
+                max_recommendations=3,
+            )
 
-            if entry_points:
-                lines.append("New to this codebase? Start with these entry points:")
+            run_commands = self._extract_run_commands(self._project.readme_content or "")
+
+            lines.append("Follow this onboarding sequence:")
+            lines.append("")
+
+            step = 1
+            if run_commands:
+                lines.append(f"{step}. Run `{run_commands[0]}` to validate the local environment.")
+                step += 1
+            if len(run_commands) > 1:
+                lines.append(f"{step}. Run `{run_commands[1]}` to exercise tests or app startup.")
+                step += 1
+
+            if recommendations:
+                primary = recommendations[0]
+                first_module = self._project.modules.get(str(primary.path))
+                if first_module is not None:
+                    rel = first_module.path.relative_to(self.project_path)
+                    lines.append(f"{step}. Read `{rel}` first to understand the control surface.")
+                    step += 1
+
+                if len(recommendations) > 1:
+                    follow_module = self._project.modules.get(str(recommendations[1].path))
+                    if follow_module is not None:
+                        rel = follow_module.path.relative_to(self.project_path)
+                        lines.append(f"{step}. Continue with `{rel}` to map core dependencies.")
+                        step += 1
+
+            while step <= 3:
+                lines.append(
+                    f"{step}. Review the Architecture section and trace one runtime flow end-to-end."
+                )
+                step += 1
+
+            lines.append("")
+
+            if recommendations:
+                lines.append("### Follow-up Code Paths")
+                lines.append("")
+                for rec in recommendations[:3]:
+                    module = self._project.modules.get(str(rec.path))
+                    if module is None:
+                        continue
+
+                    rel_path = module.path.relative_to(self.project_path)
+                    lines.append(f"- **{module.name}** (`{rel_path}`)")
+                    if rec.reasons:
+                        lines.append(f"  - Why: {rec.reasons[0]}")
+
+                    guidance = self._entry_point_guidance.get(str(module.path))
+                    if guidance:
+                        badge = self._quality_badge(
+                            self._entry_point_providers.get(str(module.path), "heuristic")
+                        )
+                        lines.append(f"  - Guidance: {badge} {guidance}")
                 lines.append("")
 
-                for ep in entry_points[:3]:
-                    lines.append(f"### {ep.name}")
-                    lines.append("")
-                    if ep.description:
-                        lines.append(ep.description)
-                    else:
-                        lines.append(f"Located at `{ep.path.relative_to(self.project_path)}`")
-
-                    # Suggest next modules to explore
-                    deps = self._graph.get_dependencies(ep.path)
-                    if deps:
-                        dep_names = [d.name for d in deps[:3]]
-                        lines.append(f"After understanding this, explore: {', '.join(dep_names)}")
-                    lines.append("")
-            else:
+            if not recommendations:
                 lines.append("No clear entry points detected.")
                 lines.append(
-                    "Consider starting with the most-connected modules in the Architecture section."
+                    "Start with the most-connected modules in the Architecture section, then"
+                    " trace their dependencies."
                 )
 
         return Section(
@@ -517,6 +683,139 @@ class GuideGenerator:
             title="Start Here",
             content="\n".join(lines) if lines else "Getting started guide not available.",
         )
+
+    def _apply_quality_profile_defaults(self) -> None:
+        """Apply quality-profile defaults while respecting explicit overrides."""
+        profile = self.config.quality_profile.strip().lower()
+        if profile not in self._QUALITY_PROFILE_DEFAULTS:
+            valid = ", ".join(sorted(self._QUALITY_PROFILE_DEFAULTS))
+            raise ValueError(
+                f"Unsupported quality profile '{self.config.quality_profile}'. Use: {valid}"
+            )
+
+        defaults = self._QUALITY_PROFILE_DEFAULTS[profile]
+        self.config.quality_profile = profile
+
+        if profile == "fast":
+            self.config.use_llm = False
+
+        if self.config.minimum_module_words == 0:
+            self.config.minimum_module_words = int(defaults["minimum_module_words"])
+        if self.config.minimum_architecture_words == 0:
+            self.config.minimum_architecture_words = int(defaults["minimum_architecture_words"])
+        if self.config.minimum_entry_point_words == 0:
+            self.config.minimum_entry_point_words = int(defaults["minimum_entry_point_words"])
+
+        self.config.llm_architecture_pass = bool(
+            self.config.llm_architecture_pass and defaults["llm_architecture_pass"]
+        )
+        self.config.llm_entry_point_pass = bool(
+            self.config.llm_entry_point_pass and defaults["llm_entry_point_pass"]
+        )
+
+    def _quality_banner_lines(self) -> list[str]:
+        """Build quality coverage banner lines for the overview section."""
+        if not self._summary_providers:
+            return []
+
+        total = len(self._summary_providers)
+        llm_count = sum(
+            1 for p in self._summary_providers.values() if p not in {"heuristic", "none"}
+        )
+        heuristic_count = sum(1 for p in self._summary_providers.values() if p == "heuristic")
+        coverage = (llm_count / total) * 100 if total else 0.0
+        fallback_ratio = heuristic_count / total if total else 0.0
+
+        if fallback_ratio >= 0.6:
+            fallback_level = "high"
+        elif fallback_ratio >= 0.3:
+            fallback_level = "moderate"
+        else:
+            fallback_level = "low"
+
+        lines = [
+            f"> Quality Profile: **{self.config.quality_profile}**",
+            f"> LLM Coverage: **{coverage:.1f}%** ({llm_count}/{total} module summaries)",
+            f"> Heuristic Fallback: **{fallback_level}** ({heuristic_count}/{total})",
+        ]
+
+        if self._architecture_provider != "none":
+            lines.append(f"> Architecture Synthesis: **{self._architecture_provider}**")
+
+        if fallback_level == "high":
+            lines.append(
+                "> Warning: output is mostly heuristic. Re-run with `--quality deep` and provider auto mode."
+            )
+
+        return lines
+
+    def _quality_badge(self, provider_used: str) -> str:
+        """Render a quality badge from provider usage."""
+        if provider_used == "heuristic":
+            return "[heuristic]"
+        if provider_used == "none":
+            return "[none]"
+        return f"[LLM:{provider_used}]"
+
+    def _runtime_flow_lines(self) -> list[str]:
+        """Create human-readable runtime flow bullets from graph topology."""
+        if not (self._project and self._graph):
+            return []
+
+        entry_points = self._project.entry_points
+        if not entry_points:
+            entry_points = self._graph.get_entry_points()
+
+        lines: list[str] = []
+        for entry_point in entry_points[:4]:
+            chain = [entry_point.name]
+            current = entry_point
+            visited = {str(entry_point.path)}
+
+            for _ in range(3):
+                deps = self._graph.get_dependencies(current.path)
+                if not deps:
+                    break
+                nxt = deps[0]
+                if str(nxt.path) in visited:
+                    break
+                chain.append(nxt.name)
+                visited.add(str(nxt.path))
+                current = nxt
+
+            if len(chain) > 1:
+                flow = " -> ".join(chain)
+                lines.append(f"- `{flow}`")
+
+        return lines
+
+    def _extract_run_commands(self, text: str, max_items: int = 6) -> list[str]:
+        """Extract likely run/test commands from README-like text."""
+        commands: list[str] = []
+        seen: set[str] = set()
+
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+
+            line = line.lstrip("-*0123456789. ").strip("`")
+            if not line or line.startswith("#"):
+                continue
+
+            if not self._COMMAND_PREFIX.match(line):
+                continue
+
+            normalized = " ".join(line.split())
+            if normalized in seen:
+                continue
+
+            seen.add(normalized)
+            commands.append(normalized)
+            if len(commands) >= max_items:
+                break
+
+        return commands
 
     def _detect_primary_language(self, files: list[Path]) -> str | None:
         """Detect the primary programming language."""

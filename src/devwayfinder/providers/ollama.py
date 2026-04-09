@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from devwayfinder.core.protocols import HealthStatus, SummarizationContext
 from devwayfinder.providers.base import BaseProvider
@@ -30,13 +30,30 @@ class OllamaProvider(BaseProvider):
 
     async def summarize(self, context: SummarizationContext) -> str:
         """Generate a summary using Ollama's generate API."""
+        quality_profile = context.metadata.get("quality_profile", "balanced")
+        minimum_words = context.metadata.get("minimum_summary_words", 0)
+        min_words_value = 0
+        if isinstance(minimum_words, int):
+            min_words_value = max(0, minimum_words)
+        elif isinstance(minimum_words, str) and minimum_words.strip().isdigit():
+            min_words_value = max(0, int(minimum_words.strip()))
+
+        length_instruction = (
+            f"Write at least {min_words_value} words."
+            if min_words_value > 0
+            else "Write 2-4 sentences."
+        )
+
         response = await self._request(
             "POST",
             "/api/generate",
             json_body={
                 "model": self._model_name(),
                 "prompt": (
-                    "Summarize this code module for developer onboarding in 2-4 sentences.\n\n"
+                    "You generate onboarding summaries for developers joining an unfamiliar"
+                    " codebase. Focus on responsibilities, runtime behavior, and practical"
+                    " navigation guidance. "
+                    f"Quality profile: {quality_profile}. {length_instruction}\n\n"
                     f"{context.to_prompt_context()}"
                 ),
                 "stream": False,
@@ -47,8 +64,7 @@ class OllamaProvider(BaseProvider):
             },
         )
         payload = response.json()
-        result = payload.get("response", "")
-        return result.strip() if isinstance(result, str) else ""
+        return _extract_ollama_content(payload)
 
     async def health_check(self) -> HealthStatus:
         """Check that the Ollama API is reachable and returns tags."""
@@ -70,3 +86,59 @@ class OllamaProvider(BaseProvider):
             latency_ms=latency_ms,
             model_info={"models": models[:10]},
         )
+
+
+def _extract_ollama_content(payload: dict[str, Any]) -> str:
+    """Extract best-effort completion text from Ollama response payloads."""
+    candidates: list[str] = []
+
+    # Ollama /api/generate shape.
+    candidates.extend(_collect_text_candidates(payload.get("response")))
+
+    # Ollama /api/chat shape.
+    candidates.extend(_collect_text_candidates(payload.get("message")))
+
+    # OpenAI-compatible proxy variants.
+    candidates.extend(_collect_text_candidates(payload.get("choices")))
+    candidates.extend(_collect_text_candidates(payload.get("output_text")))
+    candidates.extend(_collect_text_candidates(payload.get("text")))
+
+    for candidate in candidates:
+        cleaned = candidate.strip()
+        if cleaned:
+            return cleaned
+
+    return ""
+
+
+def _collect_text_candidates(value: Any) -> list[str]:
+    """Collect candidate text fragments from nested payload values."""
+    if value is None:
+        return []
+
+    if isinstance(value, str):
+        stripped = value.strip()
+        return [stripped] if stripped else []
+
+    if isinstance(value, list):
+        list_collected: list[str] = []
+        for item in value:
+            list_collected.extend(_collect_text_candidates(item))
+        return list_collected
+
+    if isinstance(value, dict):
+        dict_collected: list[str] = []
+        for key in (
+            "response",
+            "content",
+            "text",
+            "output_text",
+            "message",
+            "reasoning",
+            "reasoning_content",
+        ):
+            if key in value:
+                dict_collected.extend(_collect_text_candidates(value.get(key)))
+        return dict_collected
+
+    return []

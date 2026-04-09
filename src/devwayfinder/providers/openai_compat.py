@@ -72,23 +72,74 @@ class OpenAICompatProvider(BaseProvider):
 
 
 def _extract_chat_content(payload: dict[str, Any]) -> str:
-    """Extract message text from a chat completion response."""
+    """Extract message text from chat-completion and response-style payloads."""
+    candidates: list[str] = []
+
     choices = payload.get("choices")
     if not isinstance(choices, list) or not choices:
-        return ""
+        pass
+    else:
+        first_choice = choices[0]
+        if isinstance(first_choice, dict):
+            message = first_choice.get("message")
+            candidates.extend(_collect_text_candidates(message))
+            candidates.extend(_collect_text_candidates(first_choice.get("text")))
+            candidates.extend(_collect_text_candidates(first_choice.get("reasoning")))
+            candidates.extend(_collect_text_candidates(first_choice.get("reasoning_content")))
+            candidates.extend(_collect_text_candidates(first_choice.get("output_text")))
 
-    first_choice = choices[0]
-    if not isinstance(first_choice, dict):
-        return ""
+    # OpenAI Responses API style payloads can expose text at top level.
+    candidates.extend(_collect_text_candidates(payload.get("output_text")))
+    candidates.extend(_collect_text_candidates(payload.get("text")))
+    candidates.extend(_collect_text_candidates(payload.get("response")))
+    candidates.extend(_collect_text_candidates(payload.get("output")))
 
-    message = first_choice.get("message")
-    if isinstance(message, dict):
-        content = message.get("content")
-        if isinstance(content, str):
-            return content.strip()
-
-    text = first_choice.get("text")
-    if isinstance(text, str):
-        return text.strip()
+    for candidate in candidates:
+        cleaned = candidate.strip()
+        if cleaned:
+            return cleaned
 
     return ""
+
+
+def _collect_text_candidates(value: Any) -> list[str]:
+    """Collect candidate text fragments from nested response payload values."""
+    if value is None:
+        return []
+
+    if isinstance(value, str):
+        stripped = value.strip()
+        return [stripped] if stripped else []
+
+    if isinstance(value, list):
+        list_collected: list[str] = []
+        for item in value:
+            list_collected.extend(_collect_text_candidates(item))
+        return list_collected
+
+    if isinstance(value, dict):
+        dict_collected: list[str] = []
+
+        # Common structured content shapes.
+        for key in (
+            "content",
+            "text",
+            "output_text",
+            "reasoning",
+            "reasoning_content",
+            "message",
+            "value",
+            "arguments",
+        ):
+            if key in value:
+                dict_collected.extend(_collect_text_candidates(value.get(key)))
+
+        # Extract text blocks from response/message arrays.
+        nested_type = value.get("type")
+        if nested_type in {"text", "output_text", "message", "reasoning"}:
+            dict_collected.extend(_collect_text_candidates(value.get("text")))
+            dict_collected.extend(_collect_text_candidates(value.get("content")))
+
+        return dict_collected
+
+    return []

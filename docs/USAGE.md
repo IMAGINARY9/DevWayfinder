@@ -2,7 +2,7 @@
 
 > **Version:** 1.1.1  
 > **Status:** Active  
-> **Last Updated:** 2026-04-04  
+> **Last Updated:** 2026-04-09  
 > **Authoritative Source:** This document is the single source of truth for runtime usage and provider setup.
 
 ---
@@ -10,14 +10,15 @@
 ## 1. Quick Start
 
 ```bash
-# Analyze without generating a guide
-devwayfinder analyze ./my-project
+# Guided one-command workflow (default: auto provider probe + deep quality)
+devwayfinder guide ./my-project --auto
 
-# Generate guide in heuristic mode (no LLM calls)
-devwayfinder generate ./my-project --no-llm
+# Fast offline workflow (heuristic-only)
+devwayfinder guide ./my-project --quality fast --no-llm
 
-# Generate guide with provider
+# Advanced/manual generation workflow
 devwayfinder generate ./my-project \
+  --quality balanced \
   --model-provider openai_compat \
   --base-url http://127.0.0.1:11434/v1
 ```
@@ -26,7 +27,35 @@ devwayfinder generate ./my-project \
 
 ## 2. Commands
 
-### 2.1 `generate`
+### 2.1 `guide`
+
+Recommended one-command workflow:
+
+```bash
+devwayfinder guide PATH [options]
+```
+
+Behavior:
+
+1. Uses LLM-first generation by default (`--quality deep`)
+2. Auto-probes local endpoints by default (`--auto`)
+3. Writes guide output to `PATH/ONBOARDING_GUIDE.md` unless overridden
+4. Writes concise run report to `PATH/.devwayfinder/run_report.md`
+
+Key options:
+
+| Option | Description |
+|--------|-------------|
+| `-o, --output PATH` | Write guide to custom file path |
+| `--quality PROFILE` | `deep`, `balanced`, `fast` |
+| `--auto / --manual` | Enable/disable provider auto-probing |
+| `--no-llm` | Force heuristic-only mode |
+| `--model-name NAME` | Optional model override |
+| `--base-url URL` | Optional endpoint override |
+| `--api-key KEY` | API key (or `DEVWAYFINDER_API_KEY`) |
+| `-v, --verbose` | Show probe diagnostics |
+
+### 2.2 `generate`
 
 Run the full pipeline:
 
@@ -49,10 +78,12 @@ Options:
 | `--base-url URL` | Provider endpoint URL |
 | `--api-key KEY` | API key (or `DEVWAYFINDER_API_KEY`) |
 | `--no-llm` | Force heuristic-only summarization |
+| `--quality PROFILE` | `deep`, `balanced`, `fast` |
+| `--auto` | Auto-probe local providers and use first healthy endpoint |
 | `--guide-template PATH` | Use a custom guide template YAML |
 | `-v, --verbose` | Show verbose CLI diagnostics |
 
-### 2.2 `analyze`
+### 2.3 `analyze`
 
 Run analysis only (no guide generation):
 
@@ -60,7 +91,7 @@ Run analysis only (no guide generation):
 devwayfinder analyze PATH [--json] [--verbose]
 ```
 
-### 2.3 `test-model`
+### 2.4 `test-model`
 
 Validate provider health and completion:
 
@@ -74,7 +105,7 @@ Behavior notes:
 - If `--model` is omitted, DevWayfinder will reuse the first discovered model from the health response when possible.
 - HTTP failures include method, path, status, and response preview for faster diagnosis.
 
-### 2.4 `init`
+### 2.5 `init`
 
 Initialize `.devwayfinder/config.yaml` using built-in project templates:
 
@@ -170,6 +201,12 @@ Generation prints:
 - Final totals (`Tokens used (estimated)`, `Cost (estimated)`)
 
 This reporting is always enabled in current MVP behavior.
+
+Quality and fallback visibility:
+
+- Guides include a quality banner with `Quality Profile`, `LLM Coverage`, and fallback level.
+- Deep/balanced profiles run extra synthesis passes for architecture and start-here guidance.
+- Fast profile is optimized for speed and defaults to heuristic-only behavior.
 
 ---
 

@@ -110,6 +110,7 @@ class TestGenerationConfig:
         assert config.use_llm is True
         assert config.include_mermaid is True
         assert config.max_modules_in_graph == 50
+        assert config.quality_profile == "deep"
 
     def test_custom_config(self) -> None:
         """Should accept custom values."""
@@ -117,11 +118,13 @@ class TestGenerationConfig:
             use_llm=False,
             include_mermaid=False,
             max_concurrent_requests=10,
+            quality_profile="balanced",
         )
 
         assert config.use_llm is False
         assert config.include_mermaid is False
         assert config.max_concurrent_requests == 10
+        assert config.quality_profile == "balanced"
 
 
 # =============================================================================
@@ -251,6 +254,51 @@ class TestGuideGenerator:
         assert modules is not None
         joined = "\n".join(s.content for s in modules.subsections)
         assert "[heuristic]" in joined
+
+    @pytest.mark.asyncio
+    async def test_quality_banner_present_in_overview(self, sample_project: Path) -> None:
+        """Overview should include quality profile and LLM coverage transparency."""
+        config = GenerationConfig(use_llm=False)
+        generator = GuideGenerator(sample_project, config)
+
+        result = await generator.generate()
+        overview = result.guide.get_section(SectionType.OVERVIEW)
+
+        assert overview is not None
+        assert "Quality Profile" in overview.content
+        assert "LLM Coverage" in overview.content
+
+    @pytest.mark.asyncio
+    async def test_architecture_includes_runtime_flow_map(self, sample_project: Path) -> None:
+        """Architecture section should include runtime flow map when graph edges exist."""
+        config = GenerationConfig(use_llm=False)
+        generator = GuideGenerator(sample_project, config)
+
+        result = await generator.generate()
+        architecture = result.guide.get_section(SectionType.ARCHITECTURE)
+
+        assert architecture is not None
+        assert "Runtime Flow Map" in architecture.content
+
+    @pytest.mark.asyncio
+    async def test_start_here_has_actionable_checklist(self, sample_project: Path) -> None:
+        """Start Here section should include an actionable sequence."""
+        config = GenerationConfig(use_llm=False)
+        generator = GuideGenerator(sample_project, config)
+
+        result = await generator.generate()
+        start_here = result.guide.get_section(SectionType.START_HERE)
+
+        assert start_here is not None
+        assert "Follow this onboarding sequence" in start_here.content
+        assert "1." in start_here.content
+
+    def test_fast_quality_profile_forces_no_llm(self, sample_project: Path) -> None:
+        """Fast profile should force heuristic mode even if use_llm is requested."""
+        config = GenerationConfig(use_llm=True, quality_profile="fast")
+        generator = GuideGenerator(sample_project, config)
+
+        assert generator.config.use_llm is False
 
     @pytest.mark.asyncio
     async def test_dependencies_section_with_mermaid(self, sample_project: Path) -> None:

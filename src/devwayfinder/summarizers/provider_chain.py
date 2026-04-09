@@ -72,23 +72,20 @@ class ProviderChain:
         # Try each configured provider in order
         for provider in self.providers:
             try:
-                if provider_call is not None:
-                    summary = await provider_call(provider, context)
-                    if not self._has_text(summary):
-                        raise ValueError("Provider returned empty summary")
-                    logger.info("Provider %s succeeded", provider.name)
-                    return provider.name, summary.strip()
-
-                if self.retry_manager:
-                    summary = await self.retry_manager.call_with_retry(provider, context)
-                else:
-                    summary = await provider.summarize(context)
+                summary = await self._invoke_provider(provider_call, provider, context)
 
                 if not self._has_text(summary):
                     raise ValueError("Provider returned empty summary")
 
+                enriched_summary = await self._enforce_quality_threshold(
+                    provider_call,
+                    provider,
+                    context,
+                    summary.strip(),
+                )
+
                 logger.info("Provider %s succeeded", provider.name)
-                return provider.name, summary.strip()
+                return provider.name, enriched_summary
 
             except Exception as e:
                 last_error = f"{provider.name}: {e}"
@@ -103,6 +100,94 @@ class ProviderChain:
     def _has_text(summary: str | None) -> bool:
         """Check whether a provider response contains useful content."""
         return bool(summary and summary.strip())
+
+    async def _invoke_provider(
+        self,
+        provider_call: ProviderCall | None,
+        provider: ModelProvider,
+        context: SummarizationContext,
+    ) -> str:
+        """Execute provider call with optional retry manager support."""
+        if provider_call is not None:
+            return await provider_call(provider, context)
+
+        if self.retry_manager:
+            return await self.retry_manager.call_with_retry(provider, context)
+
+        return await provider.summarize(context)
+
+    async def _enforce_quality_threshold(
+        self,
+        provider_call: ProviderCall | None,
+        provider: ModelProvider,
+        context: SummarizationContext,
+        summary: str,
+    ) -> str:
+        """Retry once with stronger hints when a summary is below configured quality threshold."""
+        minimum_words = self._minimum_words(context)
+        if minimum_words <= 0:
+            return summary
+
+        if self._word_count(summary) >= minimum_words:
+            return summary
+
+        logger.info(
+            "Provider %s returned short summary (%d words < %d), retrying with quality hints",
+            provider.name,
+            self._word_count(summary),
+            minimum_words,
+        )
+
+        retry_context = self._build_quality_retry_context(context, minimum_words)
+        retry_summary = await self._invoke_provider(provider_call, provider, retry_context)
+        if not self._has_text(retry_summary):
+            raise ValueError("Provider returned empty summary after quality retry")
+
+        cleaned_retry_summary = retry_summary.strip()
+        retry_words = self._word_count(cleaned_retry_summary)
+        if retry_words < minimum_words:
+            raise ValueError(
+                f"Provider summary below quality threshold ({retry_words} < {minimum_words} words)"
+            )
+
+        return cleaned_retry_summary
+
+    @staticmethod
+    def _word_count(text: str) -> int:
+        """Count words in a summary."""
+        return len([token for token in text.split() if token.strip()])
+
+    @staticmethod
+    def _minimum_words(context: SummarizationContext) -> int:
+        """Extract minimum summary word threshold from context metadata."""
+        value = context.metadata.get("minimum_summary_words", 0)
+        if isinstance(value, int):
+            return max(0, value)
+        if isinstance(value, str) and value.strip().isdigit():
+            return max(0, int(value.strip()))
+        return 0
+
+    def _build_quality_retry_context(
+        self,
+        context: SummarizationContext,
+        minimum_words: int,
+    ) -> SummarizationContext:
+        """Add explicit expansion hints for quality retries."""
+        existing = context.metadata.get("prompt_hints")
+        prompt_hints = [
+            str(item).strip()
+            for item in (existing if isinstance(existing, list) else [])
+            if str(item).strip()
+        ]
+        prompt_hints.append(
+            "Expand with concrete behavior and onboarding guidance. "
+            f"Use at least {minimum_words} words."
+        )
+
+        return context.with_updated_metadata(
+            prompt_hints=prompt_hints,
+            quality_retry=True,
+        )
 
     def should_use_heuristic(self) -> bool:
         """Check if heuristic fallback is enabled.

@@ -82,6 +82,55 @@ async def test_openai_compat_uses_discovered_model_for_completion(respx_mock: ob
 
 
 @pytest.mark.asyncio
+async def test_openai_compat_extracts_nested_content_blocks(respx_mock: object) -> None:
+    """Completion parsing should support content arrays used by some local providers."""
+    respx_mock.post("http://127.0.0.1:5000/v1/chat/completions").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": [{"type": "text", "text": "Detailed onboarding summary."}]
+                        }
+                    }
+                ]
+            },
+        )
+    )
+
+    provider = OpenAICompatProvider(ProviderConfig(provider="openai_compat"))
+    summary = await provider.summarize(SummarizationContext(module_name="src/main.py"))
+
+    assert summary == "Detailed onboarding summary."
+    await provider.close()
+
+
+@pytest.mark.asyncio
+async def test_openai_compat_extracts_responses_api_shape(respx_mock: object) -> None:
+    """Completion parsing should support response-style output payloads."""
+    respx_mock.post("http://127.0.0.1:5000/v1/chat/completions").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{"type": "output_text", "text": "Responses summary text."}],
+                    }
+                ]
+            },
+        )
+    )
+
+    provider = OpenAICompatProvider(ProviderConfig(provider="openai_compat"))
+    summary = await provider.summarize(SummarizationContext(module_name="src/main.py"))
+
+    assert summary == "Responses summary text."
+    await provider.close()
+
+
+@pytest.mark.asyncio
 async def test_ollama_health_check(respx_mock: object) -> None:
     """Ollama provider should report available models from the tags endpoint."""
     respx_mock.get("http://localhost:11434/api/tags").mock(
@@ -120,6 +169,20 @@ async def test_ollama_uses_discovered_model_for_completion(respx_mock: object) -
 
     assert summary == "ok"
     assert captured_payload.get("model") == "qwen2.5:7b"
+    await provider.close()
+
+
+@pytest.mark.asyncio
+async def test_ollama_extracts_message_content_fallback(respx_mock: object) -> None:
+    """Ollama parsing should support chat-style message.content fallback."""
+    respx_mock.post("http://localhost:11434/api/generate").mock(
+        return_value=httpx.Response(200, json={"message": {"content": "chat variant summary"}})
+    )
+
+    provider = OllamaProvider(ProviderConfig(provider="ollama"))
+    summary = await provider.summarize(SummarizationContext(module_name="src/main.py"))
+
+    assert summary == "chat variant summary"
     await provider.close()
 
 

@@ -101,9 +101,32 @@ class SummarizationContext:
         self.neighbors = neighbors or []
         self.metadata = metadata or {}
 
+    def with_updated_metadata(self, **updates: Any) -> SummarizationContext:
+        """Return a copy of this context with metadata updates applied."""
+        merged_metadata = dict(self.metadata)
+        merged_metadata.update(updates)
+        return SummarizationContext(
+            module_name=self.module_name,
+            file_content=self.file_content,
+            signatures=list(self.signatures),
+            docstrings=list(self.docstrings),
+            imports=list(self.imports),
+            exports=list(self.exports),
+            neighbors=list(self.neighbors),
+            metadata=merged_metadata,
+        )
+
     def to_prompt_context(self, max_chars: int = 4000) -> str:
         """Format context for LLM prompt."""
         parts = [f"Module: {self.module_name}"]
+
+        relative_path = self.metadata.get("relative_path")
+        if isinstance(relative_path, str) and relative_path:
+            parts.append(f"Path: {relative_path}")
+
+        language = self.metadata.get("language")
+        if isinstance(language, str) and language:
+            parts.append(f"Language: {language}")
 
         if self.docstrings:
             parts.append("\nDocstrings:\n" + "\n".join(self.docstrings[:5]))
@@ -117,11 +140,94 @@ class SummarizationContext:
         if self.exports:
             parts.append(f"\nExports: {', '.join(self.exports[:10])}")
 
+        if self.neighbors:
+            parts.append(f"\nRelated Modules: {', '.join(self.neighbors[:10])}")
+
+        risk_markers = self.metadata.get("risk_markers")
+        if isinstance(risk_markers, list):
+            markers = [str(marker).strip() for marker in risk_markers if str(marker).strip()]
+            if markers:
+                parts.append(
+                    "\nRisk Markers:\n" + "\n".join(f"- {marker}" for marker in markers[:6])
+                )
+
+        prompt_hints = self.metadata.get("prompt_hints")
+        if isinstance(prompt_hints, list):
+            hints = [str(hint).strip() for hint in prompt_hints if str(hint).strip()]
+            if hints:
+                parts.append("\nFocus:\n" + "\n".join(f"- {hint}" for hint in hints[:6]))
+
+        metadata_lines = self._render_metadata_lines()
+        if metadata_lines:
+            parts.append("\nContext Signals:\n" + "\n".join(metadata_lines))
+
+        if self.file_content:
+            excerpt = self.file_content.strip()
+            if excerpt:
+                snippet = excerpt[:1200]
+                if len(excerpt) > len(snippet):
+                    snippet += "\n...(truncated)"
+                parts.append("\nCode Excerpt:\n" + snippet)
+
         result = "\n".join(parts)
         if len(result) > max_chars:
             result = result[:max_chars] + "\n...(truncated)"
 
         return result
+
+    def _render_metadata_lines(self) -> list[str]:
+        """Render concise metadata key/value lines for prompt context."""
+        skipped = {
+            "relative_path",
+            "language",
+            "prompt_hints",
+            "risk_markers",
+            "minimum_summary_words",
+            "quality_profile",
+        }
+        lines: list[str] = []
+        for key, value in self.metadata.items():
+            if key in skipped or value in (None, "", [], {}):
+                continue
+
+            rendered = self._render_metadata_value(value)
+            if rendered:
+                label = key.replace("_", " ")
+                lines.append(f"- {label}: {rendered}")
+
+            if len(lines) >= 12:
+                break
+
+        return lines
+
+    def _render_metadata_value(self, value: Any) -> str:
+        """Render metadata values into concise strings."""
+        if isinstance(value, bool):
+            return "yes" if value else "no"
+
+        if isinstance(value, (int, float, str)):
+            text = str(value).strip()
+            return text[:160]
+
+        if isinstance(value, list):
+            list_items = [str(item).strip() for item in value if str(item).strip()]
+            if not list_items:
+                return ""
+            joined = ", ".join(list_items[:6])
+            if len(list_items) > 6:
+                joined += ", ..."
+            return joined[:160]
+
+        if isinstance(value, dict):
+            items: list[str] = []
+            for idx, (k, v) in enumerate(value.items()):
+                if idx >= 4:
+                    items.append("...")
+                    break
+                items.append(f"{k}={v}")
+            return ", ".join(items)[:160]
+
+        return str(value).strip()[:160]
 
 
 class HealthStatus:

@@ -16,8 +16,8 @@ from devwayfinder.analyzers import GraphBuilder, StructureAnalyzer
 from devwayfinder.cli.console import create_console
 from devwayfinder.cli.progress import create_generation_tracker
 from devwayfinder.core.exceptions import DevWayfinderError
-from devwayfinder.core.protocols import SummarizationContext
-from devwayfinder.generators import GenerationConfig, GuideGenerator
+from devwayfinder.core.protocols import ModelProvider, SummarizationContext
+from devwayfinder.generators import GenerationConfig, GenerationResult, GuideGenerator
 from devwayfinder.providers import create_provider, load_provider_config, supported_providers
 from devwayfinder.utils.tokens import TokenEstimate, estimate_cost
 from devwayfinder.version import get_version
@@ -30,6 +30,17 @@ app = typer.Typer(
 
 console = create_console()
 SUPPORTED_PROVIDER_HELP = ", ".join(supported_providers())
+
+QUALITY_PROFILES = ("deep", "balanced", "fast")
+
+AUTO_PROVIDER_CANDIDATES: tuple[tuple[str, str], ...] = (
+    ("openai_compat", "http://127.0.0.1:11434/v1"),
+    ("openai_compat", "http://127.0.0.1:11435/v1"),
+    ("openai_compat", "http://127.0.0.1:1234/v1"),
+    ("openai_compat", "http://127.0.0.1:5000/v1"),
+    ("openai_compat", "http://127.0.0.1:8000/v1"),
+    ("ollama", "http://localhost:11434"),
+)
 
 
 @app.command()
@@ -70,6 +81,16 @@ def generate(
         "--no-llm",
         help="Use heuristic mode (no LLM)",
     ),
+    quality: str = typer.Option(
+        "deep",
+        "--quality",
+        help="Quality profile: deep, balanced, fast",
+    ),
+    auto: bool = typer.Option(
+        False,
+        "--auto",
+        help="Auto-probe local providers and use the first healthy endpoint",
+    ),
     guide_template: str | None = typer.Option(
         None,
         "--guide-template",
@@ -92,8 +113,83 @@ def generate(
             base_url=base_url,
             api_key=api_key,
             no_llm=no_llm,
+            quality=quality,
+            auto=auto,
             guide_template=guide_template,
             verbose=verbose,
+        )
+    )
+
+
+@app.command()
+def guide(
+    path: str = typer.Argument(
+        ".",
+        help="Path to project to analyze",
+    ),
+    output: str | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Guide output path (default: PATH/ONBOARDING_GUIDE.md)",
+    ),
+    quality: str = typer.Option(
+        "deep",
+        "--quality",
+        help="Quality profile: deep, balanced, fast",
+    ),
+    auto: bool = typer.Option(
+        True,
+        "--auto/--manual",
+        help="Auto-probe local providers (default: enabled)",
+    ),
+    model_name: str | None = typer.Option(
+        None,
+        "--model-name",
+        help="Optional model identifier override",
+    ),
+    base_url: str | None = typer.Option(
+        None,
+        "--base-url",
+        help="Optional endpoint override",
+    ),
+    api_key: str | None = typer.Option(
+        None,
+        "--api-key",
+        envvar="DEVWAYFINDER_API_KEY",
+        help="API key for remote providers",
+    ),
+    no_llm: bool = typer.Option(
+        False,
+        "--no-llm",
+        help="Force heuristic-only mode",
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Enable verbose output",
+    ),
+) -> None:
+    """Generate guide using the guided one-command workflow."""
+    project_path = Path(path).resolve()
+    default_output = project_path / "ONBOARDING_GUIDE.md"
+    run_report = project_path / ".devwayfinder" / "run_report.md"
+
+    asyncio.run(
+        _generate_async(
+            path=path,
+            output=output or str(default_output),
+            model_provider="openai_compat",
+            model_name=model_name,
+            base_url=base_url,
+            api_key=api_key,
+            no_llm=no_llm,
+            quality=quality,
+            auto=auto,
+            guide_template=None,
+            verbose=verbose,
+            run_report_path=str(run_report),
         )
     )
 
@@ -107,8 +203,11 @@ async def _generate_async(
     base_url: str | None,
     api_key: str | None,
     no_llm: bool,
+    quality: str,
+    auto: bool,
     guide_template: str | None,
     verbose: bool,
+    run_report_path: str | None = None,
 ) -> None:
     """Run the full generation pipeline."""
     project_path = Path(path).resolve()
@@ -135,26 +234,54 @@ async def _generate_async(
     if verbose and config_path is not None:
         console.print(f"[dim]Loaded analysis config: {config_path}[/dim]")
 
-    # Build LLM provider if needed
-    providers = []
-    if not no_llm:
-        try:
-            config = load_provider_config(
-                provider=model_provider,
-                model_name=model_name,
-                base_url=base_url,
-                api_key=api_key,
-            )
-            provider = create_provider(config)
-            providers.append(provider)
+    try:
+        quality_profile = _normalize_quality_profile(quality)
+    except ValueError as exc:
+        console.print(f"[red]ConfigurationError:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
 
-            if verbose:
-                console.print(f"[dim]Using provider: {provider.name}[/dim]")
-                console.print(f"[dim]Endpoint: {config.resolved_base_url() or 'default'}[/dim]")
-        except ValueError as exc:
-            console.print(f"[yellow]Warning:[/yellow] Could not configure LLM: {exc}")
-            console.print("[yellow]Falling back to heuristic mode.[/yellow]")
-            no_llm = True
+    effective_no_llm = no_llm or quality_profile == "fast"
+    if quality_profile == "fast" and not no_llm:
+        console.print("[yellow]Quality profile 'fast' uses heuristic mode for quick runs.[/yellow]")
+
+    # Build LLM provider if needed
+    providers: list[ModelProvider] = []
+    selected_provider_label = "heuristic"
+    if not effective_no_llm:
+        if auto:
+            providers, selected_provider_label = await _auto_select_provider(
+                model_name=model_name,
+                api_key=api_key,
+                base_url=base_url,
+                verbose=verbose,
+            )
+            if not providers:
+                console.print(
+                    "[yellow]Warning:[/yellow] Auto provider detection failed. Falling back to"
+                    " heuristic mode."
+                )
+                effective_no_llm = True
+        else:
+            try:
+                config = load_provider_config(
+                    provider=model_provider,
+                    model_name=model_name,
+                    base_url=base_url,
+                    api_key=api_key,
+                )
+                provider = create_provider(config)
+                providers.append(provider)
+                selected_provider_label = (
+                    f"{provider.name}@{config.resolved_base_url() or 'default'}"
+                )
+
+                if verbose:
+                    console.print(f"[dim]Using provider: {provider.name}[/dim]")
+                    console.print(f"[dim]Endpoint: {config.resolved_base_url() or 'default'}[/dim]")
+            except ValueError as exc:
+                console.print(f"[yellow]Warning:[/yellow] Could not configure LLM: {exc}")
+                console.print("[yellow]Falling back to heuristic mode.[/yellow]")
+                effective_no_llm = True
 
     try:
         # Pre-flight estimate so users can budget expensive runs.
@@ -166,7 +293,8 @@ async def _generate_async(
         preflight = _estimate_preflight_cost(
             module_count=estimated_modules,
             model_name=providers[0].name if providers else "heuristic",
-            use_llm=not no_llm,
+            use_llm=not effective_no_llm,
+            quality_profile=quality_profile,
         )
         console.print(
             Panel.fit(
@@ -182,8 +310,9 @@ async def _generate_async(
         with create_generation_tracker(console) as tracker:
             # Create generator
             gen_config = GenerationConfig(
-                use_llm=not no_llm,
+                use_llm=not effective_no_llm,
                 providers=providers,
+                quality_profile=quality_profile,
                 include_hidden=include_hidden,
                 exclude_patterns=merged_excludes,
                 include_mermaid=True,
@@ -229,10 +358,33 @@ async def _generate_async(
         )
         console.print(f"[green]✓[/green] Analyzed {result.modules_analyzed} modules")
         console.print(f"[green]✓[/green] Generation time: {result.total_time_seconds:.2f}s")
+        console.print(f"[green]✓[/green] Quality profile: {quality_profile}")
         console.print(f"[green]✓[/green] LLM summaries: {result.llm_calls_made}")
         console.print(f"[green]✓[/green] Heuristic summaries: {result.heuristic_summaries}")
         console.print(f"[green]✓[/green] Tokens used (estimated): {result.total_tokens_used:,}")
         console.print(f"[green]✓[/green] Cost (estimated): ${result.estimated_cost_usd:.6f}")
+
+        module_llm = max(result.modules_summarized - result.heuristic_summaries, 0)
+        module_coverage = (
+            (module_llm / result.modules_summarized) * 100 if result.modules_summarized else 0.0
+        )
+        console.print(
+            f"[green]✓[/green] Module LLM coverage: {module_coverage:.1f}%"
+            f" ({module_llm}/{result.modules_summarized})"
+        )
+
+        if run_report_path:
+            _write_run_report(
+                report_path=Path(run_report_path),
+                project_path=project_path,
+                result=result,
+                quality_profile=quality_profile,
+                provider_label=selected_provider_label,
+                auto_mode=auto,
+                heuristic_mode=effective_no_llm,
+                output_path=Path(output).resolve() if output else None,
+            )
+            console.print(f"[green]✓[/green] Run report written to: {Path(run_report_path)}")
 
         if result.errors:
             console.print(f"\n[yellow]Errors ({len(result.errors)}):[/yellow]")
@@ -270,7 +422,7 @@ async def _estimate_module_count(
 
 
 def _estimate_preflight_cost(
-    *, module_count: int, model_name: str, use_llm: bool
+    *, module_count: int, model_name: str, use_llm: bool, quality_profile: str
 ) -> dict[str, int | float]:
     """Estimate token and cost footprint before running generation."""
     if not use_llm or module_count == 0:
@@ -285,6 +437,11 @@ def _estimate_preflight_cost(
     avg_output_tokens = 170
     total_input = module_count * avg_input_tokens
     total_output = module_count * avg_output_tokens
+
+    if quality_profile in {"deep", "balanced"}:
+        total_input += 500  # architecture + entry-point synthesis context overhead
+        total_output += 350
+
     total_tokens = total_input + total_output
 
     estimate = TokenEstimate(
@@ -293,11 +450,144 @@ def _estimate_preflight_cost(
         total_tokens=total_tokens,
     )
     cost = estimate_cost(estimate, model_name=model_name)
+    extra_ops = 2 if quality_profile in {"deep", "balanced"} else 0
+
     return {
-        "llm_operations": module_count,
+        "llm_operations": module_count + extra_ops,
         "total_tokens": total_tokens,
         "estimated_cost": cost.total_cost,
     }
+
+
+def _normalize_quality_profile(quality: str) -> str:
+    """Validate and normalize quality profile names."""
+    normalized = quality.strip().lower()
+    if normalized not in QUALITY_PROFILES:
+        valid = ", ".join(QUALITY_PROFILES)
+        raise ValueError(f"Unsupported quality profile '{quality}'. Use: {valid}")
+    return normalized
+
+
+async def _auto_select_provider(
+    *,
+    model_name: str | None,
+    api_key: str | None,
+    base_url: str | None,
+    verbose: bool,
+) -> tuple[list[ModelProvider], str]:
+    """Probe likely local endpoints and return the first healthy provider."""
+    candidates: list[tuple[str, str]] = []
+    if base_url:
+        base = base_url.rstrip("/")
+        candidates.append(("openai_compat", base))
+        if base.endswith("/v1"):
+            candidates.append(("ollama", base[: -len("/v1")]))
+        else:
+            candidates.append(("ollama", base))
+
+    candidates.extend(AUTO_PROVIDER_CANDIDATES)
+
+    unique_candidates: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for provider_name, endpoint in candidates:
+        key = (provider_name, endpoint.rstrip("/"))
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_candidates.append((provider_name, endpoint.rstrip("/")))
+
+    diagnostics: list[str] = []
+
+    for provider_name, endpoint in unique_candidates:
+        try:
+            config = load_provider_config(
+                provider=provider_name,
+                model_name=model_name,
+                base_url=endpoint,
+                api_key=api_key,
+                timeout=15,
+            )
+            provider = create_provider(config)
+        except ValueError as exc:
+            diagnostics.append(f"{provider_name}@{endpoint}: {exc}")
+            continue
+
+        keep_provider = False
+        try:
+            health = await provider.health_check()
+            if health.healthy:
+                resolved_endpoint = config.resolved_base_url() or endpoint
+                label = f"{provider.name}@{resolved_endpoint}"
+                keep_provider = True
+                if verbose:
+                    console.print(f"[dim]Auto-selected provider: {label}[/dim]")
+                return [provider], label
+
+            diagnostics.append(f"{provider.name}@{endpoint}: unhealthy ({health.message})")
+        except Exception as exc:
+            diagnostics.append(f"{provider_name}@{endpoint}: {exc}")
+        finally:
+            if not keep_provider:
+                close_method = getattr(provider, "close", None)
+                if callable(close_method):
+                    await close_method()
+
+    if verbose and diagnostics:
+        console.print("[dim]Auto provider probe attempts:[/dim]")
+        for line in diagnostics[:8]:
+            console.print(f"[dim]  - {line}[/dim]")
+
+    return [], "heuristic"
+
+
+def _write_run_report(
+    *,
+    report_path: Path,
+    project_path: Path,
+    result: GenerationResult,
+    quality_profile: str,
+    provider_label: str,
+    auto_mode: bool,
+    heuristic_mode: bool,
+    output_path: Path | None,
+) -> None:
+    """Write a concise generation report for guided workflow runs."""
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+
+    module_llm = max(result.modules_summarized - result.heuristic_summaries, 0)
+    module_coverage = (
+        (module_llm / result.modules_summarized) * 100 if result.modules_summarized else 0.0
+    )
+
+    lines = [
+        "# DevWayfinder Run Report",
+        "",
+        f"- Project: `{project_path}`",
+        f"- Quality Profile: `{quality_profile}`",
+        f"- Provider: `{provider_label}`",
+        f"- Auto Mode: `{auto_mode}`",
+        f"- Heuristic Mode: `{heuristic_mode}`",
+        f"- Modules Analyzed: `{result.modules_analyzed}`",
+        f"- Modules Summarized: `{result.modules_summarized}`",
+        f"- Module LLM Coverage: `{module_coverage:.1f}% ({module_llm}/{result.modules_summarized})`",
+        f"- LLM Calls: `{result.llm_calls_made}`",
+        f"- Heuristic Summaries: `{result.heuristic_summaries}`",
+        f"- Tokens Used (estimated): `{result.total_tokens_used}`",
+        f"- Cost (estimated): `${result.estimated_cost_usd:.6f}`",
+        f"- Generation Time: `{result.total_time_seconds:.2f}s`",
+    ]
+
+    if output_path is not None:
+        lines.append(f"- Guide Output: `{output_path}`")
+
+    if result.errors:
+        lines.append("")
+        lines.append("## Errors")
+        lines.append("")
+        for err in result.errors[:8]:
+            lines.append(f"- {err}")
+
+    report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 @app.command()

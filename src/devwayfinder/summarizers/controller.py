@@ -71,6 +71,12 @@ class SummarizationConfig:
     max_retries: int = 2
     retry_delay: float = 1.0
 
+    # Quality behavior
+    quality_profile: str = "balanced"
+    minimum_summary_words: int = 0
+    minimum_architecture_words: int = 0
+    minimum_entry_point_words: int = 0
+
 
 class SummarizationController:
     """Orchestrates summarization of code modules.
@@ -368,6 +374,9 @@ class SummarizationController:
         Returns:
             SummarizationResult from first successful provider
         """
+        self._apply_quality_metadata(context, summary_type)
+        self._apply_template_guidance(context, summary_type)
+
         # Call provider chain
         provider_name, summary = await self.provider_chain.call_provider_chain(
             None,  # Not used since retry_manager is in chain
@@ -511,6 +520,57 @@ class SummarizationController:
                 parts.append(f"Related modules: {', '.join(suggestions)}.")
 
         return " ".join(parts)
+
+    def _apply_quality_metadata(
+        self,
+        context: SummarizationContext,
+        summary_type: SummarizationType,
+    ) -> None:
+        """Inject quality profile and threshold metadata into context."""
+        context.metadata.setdefault("quality_profile", self.config.quality_profile)
+
+        minimum_words = self._minimum_words_for(summary_type)
+        if minimum_words <= 0:
+            return
+
+        existing = context.metadata.get("minimum_summary_words")
+        if isinstance(existing, int) and existing > 0:
+            context.metadata["minimum_summary_words"] = max(existing, minimum_words)
+            return
+
+        context.metadata["minimum_summary_words"] = minimum_words
+
+    def _minimum_words_for(self, summary_type: SummarizationType) -> int:
+        """Resolve minimum summary length by summary type."""
+        if summary_type == SummarizationType.ARCHITECTURE:
+            return max(0, self.config.minimum_architecture_words)
+        if summary_type == SummarizationType.ENTRY_POINT:
+            return max(0, self.config.minimum_entry_point_words)
+        return max(0, self.config.minimum_summary_words)
+
+    def _apply_template_guidance(
+        self,
+        context: SummarizationContext,
+        summary_type: SummarizationType,
+    ) -> None:
+        """Add lightweight prompt hints tuned by summary type."""
+        existing = context.metadata.get("prompt_hints")
+        hints = [
+            str(item).strip()
+            for item in (existing if isinstance(existing, list) else [])
+            if str(item).strip()
+        ]
+
+        if summary_type == SummarizationType.ARCHITECTURE:
+            hints.append(
+                "Describe component interactions and runtime flow, not just directory layout."
+            )
+        elif summary_type == SummarizationType.ENTRY_POINT:
+            hints.append("Include concrete first steps and the next modules to read.")
+        else:
+            hints.append("Explain purpose, responsibilities, and practical onboarding relevance.")
+
+        context.metadata["prompt_hints"] = hints
 
     # =========================================================================
     # Utility Methods
