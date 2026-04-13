@@ -61,7 +61,7 @@ class GenerationConfig:
     use_llm: bool = True
     providers: list[ModelProvider] = field(default_factory=list)
     max_concurrent_requests: int = 5
-    quality_profile: str = "deep"  # deep | balanced | fast
+    quality_profile: str = "detailed"  # detailed | minimal
     minimum_module_words: int = 0
     minimum_architecture_words: int = 0
     minimum_entry_point_words: int = 0
@@ -155,7 +155,7 @@ class GuideGenerator:
         self._entry_point_providers: dict[str, str] = {}
 
     _QUALITY_PROFILE_DEFAULTS: ClassVar[dict[str, dict[str, int | bool]]] = {
-        "deep": {
+        "detailed": {
             "use_llm": True,
             "minimum_module_words": 24,
             "minimum_architecture_words": 90,
@@ -163,15 +163,7 @@ class GuideGenerator:
             "llm_architecture_pass": True,
             "llm_entry_point_pass": True,
         },
-        "balanced": {
-            "use_llm": True,
-            "minimum_module_words": 14,
-            "minimum_architecture_words": 60,
-            "minimum_entry_point_words": 32,
-            "llm_architecture_pass": True,
-            "llm_entry_point_pass": True,
-        },
-        "fast": {
+        "minimal": {
             "use_llm": False,
             "minimum_module_words": 0,
             "minimum_architecture_words": 0,
@@ -437,16 +429,10 @@ class GuideGenerator:
                 lines.append(f"**Package Manager:** {self._project.package_manager}")
             lines.append(f"**Modules:** {self._project.module_count}")
 
-            # README excerpt
-            if self._project.readme_content:
-                excerpt = self._project.readme_content[:500].strip()
-                # Try to find a description paragraph
-                paragraphs = excerpt.split("\n\n")
-                for para in paragraphs:
-                    if not para.startswith("#") and len(para) > 50:
-                        lines.append("")
-                        lines.append(para)
-                        break
+            readme_summary = self._extract_project_summary(self._project.readme_content or "")
+            if readme_summary:
+                lines.append("")
+                lines.append(readme_summary)
 
         return Section(
             section_type=SectionType.OVERVIEW,
@@ -565,37 +551,64 @@ class GuideGenerator:
         )
 
     def _create_dependencies_section(self) -> Section:
-        """Create the dependencies section with graph visualization."""
+        """Create a component-focused dependency section."""
         lines = []
 
-        if self._graph:
+        if self._graph and self._project:
+            component_modules, component_edges, internal_edges = (
+                self._component_dependency_summary()
+            )
+
             lines.append(f"**Total Modules:** {self._graph.node_count}")
             lines.append(f"**Total Dependencies:** {self._graph.edge_count}")
+            lines.append(f"**Components:** {len(component_modules)}")
+            if internal_edges:
+                lines.append(f"**Within-Component Dependencies:** {internal_edges}")
             lines.append("")
 
-            # Mermaid diagram
-            if self.config.include_mermaid and self._graph.edge_count > 0:
-                lines.append("### Dependency Graph")
+            lines.append("### Component Overview")
+            lines.append("")
+            for component, modules in sorted(
+                component_modules.items(),
+                key=lambda item: len(item[1]),
+                reverse=True,
+            )[:10]:
+                sample_names = ", ".join(module.name for module in modules[:3])
+                if len(modules) > 3:
+                    sample_names += ", ..."
+                lines.append(f"- **{component}**: {len(modules)} module(s) ({sample_names})")
+            lines.append("")
+
+            if self.config.include_mermaid and component_edges:
+                lines.append("### Component Dependency Map")
                 lines.append("")
                 lines.append("```mermaid")
-                lines.append(self._graph.to_mermaid(max_nodes=self.config.max_modules_in_graph))
+                lines.append(self._component_dependency_mermaid(component_modules, component_edges))
                 lines.append("```")
                 lines.append("")
 
-            # Text list of key dependencies
-            if self._project:
-                entry_points = self._project.entry_points
-                if entry_points:
-                    lines.append("### Key Entry Points")
-                    lines.append("")
-                    for ep in entry_points[:5]:
-                        deps = self._graph.get_dependencies(ep.path)
-                        dep_names = [d.name for d in deps[:3]]
-                        if dep_names:
-                            lines.append(f"- **{ep.name}** → {', '.join(dep_names)}")
-                        else:
-                            lines.append(f"- **{ep.name}** (no dependencies)")
-                    lines.append("")
+            if component_edges:
+                lines.append("### Strongest Component Links")
+                lines.append("")
+                strongest_links = sorted(
+                    component_edges.items(),
+                    key=lambda item: item[1],
+                    reverse=True,
+                )[:8]
+                for (source, target), edge_count in strongest_links:
+                    lines.append(f"- **{source} -> {target}**: {edge_count} dependency edge(s)")
+                lines.append("")
+
+            lines.append("### Dependency Hubs")
+            lines.append("")
+            for module in self._graph.get_core_modules(threshold=2)[:8]:
+                outgoing = len(self._graph.get_dependencies(module.path))
+                incoming = len(self._graph.get_dependents(module.path))
+                rel_path = self._relative_module_path(module)
+                lines.append(
+                    f"- **{module.name}** ({rel_path}): {outgoing} outbound, {incoming} inbound"
+                )
+            lines.append("")
 
         return Section(
             section_type=SectionType.DEPENDENCIES,
@@ -696,7 +709,7 @@ class GuideGenerator:
         defaults = self._QUALITY_PROFILE_DEFAULTS[profile]
         self.config.quality_profile = profile
 
-        if profile == "fast":
+        if profile == "minimal":
             self.config.use_llm = False
 
         if self.config.minimum_module_words == 0:
@@ -744,7 +757,7 @@ class GuideGenerator:
 
         if fallback_level == "high":
             lines.append(
-                "> Warning: output is mostly heuristic. Re-run with `--quality deep` and provider auto mode."
+                "> Warning: output is mostly heuristic. Re-run with `--quality detailed` and auto mode."
             )
 
         return lines
@@ -788,6 +801,122 @@ class GuideGenerator:
                 lines.append(f"- `{flow}`")
 
         return lines
+
+    def _component_dependency_summary(
+        self,
+    ) -> tuple[dict[str, list[Module]], dict[tuple[str, str], int], int]:
+        """Aggregate dependency edges at component granularity."""
+        component_modules: dict[str, list[Module]] = {}
+        component_edges: dict[tuple[str, str], int] = {}
+        internal_edges = 0
+
+        if not (self._project and self._graph):
+            return component_modules, component_edges, internal_edges
+
+        for module in self._project.modules.values():
+            component = self._component_label(module.path)
+            component_modules.setdefault(component, []).append(module)
+
+        for source, target, _kind in self._graph.iter_edges():
+            source_component = self._component_label(source.path)
+            target_component = self._component_label(target.path)
+
+            if source_component == target_component:
+                internal_edges += 1
+                continue
+
+            edge_key = (source_component, target_component)
+            component_edges[edge_key] = component_edges.get(edge_key, 0) + 1
+
+        return component_modules, component_edges, internal_edges
+
+    def _component_dependency_mermaid(
+        self,
+        component_modules: dict[str, list[Module]],
+        component_edges: dict[tuple[str, str], int],
+        max_components: int = 12,
+        max_edges: int = 24,
+    ) -> str:
+        """Render a compact component-level Mermaid graph."""
+        lines = ["graph LR"]
+        ordered_components = sorted(
+            component_modules.items(),
+            key=lambda item: len(item[1]),
+            reverse=True,
+        )[:max_components]
+        selected = [name for name, _ in ordered_components]
+        selected_set = set(selected)
+        node_ids = {name: f"c{index}" for index, name in enumerate(selected)}
+
+        for name in selected:
+            label = f"{name} ({len(component_modules[name])})".replace('"', r"\"")
+            lines.append(f'    {node_ids[name]}["{label}"]')
+
+        included_edges = 0
+        for (source, target), edge_count in sorted(
+            component_edges.items(),
+            key=lambda item: item[1],
+            reverse=True,
+        ):
+            if source not in selected_set or target not in selected_set:
+                continue
+
+            lines.append(f"    {node_ids[source]} -->|{edge_count}| {node_ids[target]}")
+            included_edges += 1
+            if included_edges >= max_edges:
+                break
+
+        if included_edges == 0:
+            lines.append("    %% No cross-component edges in selected components")
+
+        return "\n".join(lines)
+
+    def _component_label(self, module_path: Path) -> str:
+        """Map module paths to stable component labels."""
+        try:
+            relative = module_path.relative_to(self.project_path)
+        except ValueError:
+            return "(external)"
+
+        parts = relative.parts
+        if not parts:
+            return "(root)"
+        if len(parts) == 1:
+            return "(root)"
+
+        head = parts[0]
+        if head in {"src", "lib", "app"} and len(parts) >= 3:
+            return f"{head}/{parts[1]}"
+        return head
+
+    def _relative_module_path(self, module: Module) -> str:
+        """Return module path relative to analyzed project root."""
+        try:
+            return str(module.path.relative_to(self.project_path))
+        except ValueError:
+            return str(module.path)
+
+    def _extract_project_summary(self, readme_content: str) -> str | None:
+        """Extract a single high-signal project description line from README text."""
+        if not readme_content.strip():
+            return None
+
+        for paragraph in re.split(r"\n\s*\n", readme_content):
+            candidate = " ".join(paragraph.strip().split())
+            if len(candidate) < 60:
+                continue
+            if candidate.startswith("#"):
+                continue
+            if candidate.startswith(("![", "<img", "<svg")):
+                continue
+
+            alpha_chars = sum(1 for char in candidate if char.isalpha())
+            if alpha_chars / max(1, len(candidate)) < 0.45:
+                continue
+
+            return candidate[:280]
+
+        return None
 
     def _extract_run_commands(self, text: str, max_items: int = 6) -> list[str]:
         """Extract likely run/test commands from README-like text."""

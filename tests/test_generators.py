@@ -110,7 +110,7 @@ class TestGenerationConfig:
         assert config.use_llm is True
         assert config.include_mermaid is True
         assert config.max_modules_in_graph == 50
-        assert config.quality_profile == "deep"
+        assert config.quality_profile == "detailed"
 
     def test_custom_config(self) -> None:
         """Should accept custom values."""
@@ -118,13 +118,13 @@ class TestGenerationConfig:
             use_llm=False,
             include_mermaid=False,
             max_concurrent_requests=10,
-            quality_profile="balanced",
+            quality_profile="minimal",
         )
 
         assert config.use_llm is False
         assert config.include_mermaid is False
         assert config.max_concurrent_requests == 10
-        assert config.quality_profile == "balanced"
+        assert config.quality_profile == "minimal"
 
 
 # =============================================================================
@@ -293,9 +293,9 @@ class TestGuideGenerator:
         assert "Follow this onboarding sequence" in start_here.content
         assert "1." in start_here.content
 
-    def test_fast_quality_profile_forces_no_llm(self, sample_project: Path) -> None:
-        """Fast profile should force heuristic mode even if use_llm is requested."""
-        config = GenerationConfig(use_llm=True, quality_profile="fast")
+    def test_minimal_quality_profile_forces_no_llm(self, sample_project: Path) -> None:
+        """Minimal profile should force heuristic mode even if use_llm is requested."""
+        config = GenerationConfig(use_llm=True, quality_profile="minimal")
         generator = GuideGenerator(sample_project, config)
 
         assert generator.config.use_llm is False

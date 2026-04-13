@@ -30,7 +30,7 @@ class OllamaProvider(BaseProvider):
 
     async def summarize(self, context: SummarizationContext) -> str:
         """Generate a summary using Ollama's generate API."""
-        quality_profile = context.metadata.get("quality_profile", "balanced")
+        quality_profile = context.metadata.get("quality_profile", "detailed")
         minimum_words = context.metadata.get("minimum_summary_words", 0)
         min_words_value = 0
         if isinstance(minimum_words, int):
@@ -52,7 +52,8 @@ class OllamaProvider(BaseProvider):
                 "prompt": (
                     "You generate onboarding summaries for developers joining an unfamiliar"
                     " codebase. Focus on responsibilities, runtime behavior, and practical"
-                    " navigation guidance. "
+                    " navigation guidance. Return only the final summary and never include"
+                    " reasoning steps, task breakdowns, or system/developer commentary. "
                     f"Quality profile: {quality_profile}. {length_instruction}\n\n"
                     f"{context.to_prompt_context()}"
                 ),

@@ -72,7 +72,7 @@ class SummarizationConfig:
     retry_delay: float = 1.0
 
     # Quality behavior
-    quality_profile: str = "balanced"
+    quality_profile: str = "detailed"
     minimum_summary_words: int = 0
     minimum_architecture_words: int = 0
     minimum_entry_point_words: int = 0
@@ -493,11 +493,6 @@ class SummarizationController:
         # Directory structure
         if meta.get("directory_structure"):
             parts.append("\n**Structure:**\n" + meta["directory_structure"])
-
-        # README excerpt
-        if meta.get("readme_excerpt"):
-            excerpt = meta["readme_excerpt"][:300].strip()
-            parts.append(f"\n**From README:**\n{excerpt}...")
 
         return "\n".join(parts)
 

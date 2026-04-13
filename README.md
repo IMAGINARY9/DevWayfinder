@@ -26,7 +26,7 @@ devwayfinder test-model --provider ollama --model mistral:7b
 ```bash
 devwayfinder guide ./my-project --auto
 # quick offline mode:
-# devwayfinder guide ./my-project --quality fast --no-llm
+# devwayfinder guide ./my-project --quality minimal --no-llm
 ```
 
 ---

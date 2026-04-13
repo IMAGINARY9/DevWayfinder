@@ -465,6 +465,36 @@ class TestSummarizationController:
         assert result.summary == "This is a mock summary."
 
     @pytest.mark.asyncio
+    async def test_reasoning_only_summary_falls_back_to_heuristic(
+        self,
+        project_root: Path,
+        sample_module: Module,
+    ) -> None:
+        """Reasoning-style provider output should be filtered from reports and trigger fallback."""
+        provider = MagicMock()
+        provider.name = "reasoning_provider"
+        provider.summarize = AsyncMock(
+            return_value=(
+                "Thinking Process:\n"
+                "1. Analyze the request\n"
+                "2. Task: generate onboarding summary\n"
+                "3. Constraints: keep it short"
+            )
+        )
+
+        config = SummarizationConfig(
+            providers=[provider],
+            use_heuristic_fallback=True,
+            max_retries=1,
+        )
+        controller = SummarizationController(project_root, config)
+
+        result = await controller.summarize_module(sample_module)
+
+        assert result.success
+        assert result.provider_used == "heuristic"
+
+    @pytest.mark.asyncio
     async def test_quality_retry_for_short_summary(
         self,
         project_root: Path,

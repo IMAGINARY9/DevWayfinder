@@ -198,6 +198,18 @@ sections:
         assert result.exit_code == 1
         assert "Unsupported quality profile" in result.output
 
+    def test_generate_accepts_legacy_quality_alias(self, tmp_path: Path) -> None:
+        """Legacy quality aliases should continue to work for backwards compatibility."""
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "main.py").write_text("def main():\n    pass\n")
+
+        result = runner.invoke(
+            app,
+            ["generate", str(tmp_path), "--no-llm", "--quality", "fast"],
+        )
+
+        assert result.exit_code == 0
+
 
 class TestGuideCommand:
     """Tests for the guided one-command workflow."""
@@ -222,7 +234,7 @@ class TestGuideCommand:
 
         result = runner.invoke(
             app,
-            ["guide", str(tmp_path), "--no-llm", "--quality", "fast"],
+            ["guide", str(tmp_path), "--no-llm", "--quality", "minimal"],
         )
 
         guide_output = tmp_path / "ONBOARDING_GUIDE.md"

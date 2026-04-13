@@ -172,6 +172,20 @@ class DependencyGraph:
         """Find all cycles in the graph."""
         return list(nx.simple_cycles(self._graph))
 
+    def iter_edges(self) -> list[tuple[Module, Module, str]]:
+        """Return graph edges with resolved source/target modules."""
+        edges: list[tuple[Module, Module, str]] = []
+        for source, target, data in self._graph.edges(data=True):
+            source_module = self.get_module(Path(source))
+            target_module = self.get_module(Path(target))
+            if source_module is None or target_module is None:
+                continue
+
+            kind = str(data.get("kind", "import")) if isinstance(data, dict) else "import"
+            edges.append((source_module, target_module, kind))
+
+        return edges
+
     @property
     def node_count(self) -> int:
         """Number of nodes in the graph."""

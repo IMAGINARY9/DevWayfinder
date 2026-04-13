@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from devwayfinder.summarizers.output_sanitizer import sanitize_summary_text
+
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
@@ -72,10 +74,11 @@ class ProviderChain:
         # Try each configured provider in order
         for provider in self.providers:
             try:
-                summary = await self._invoke_provider(provider_call, provider, context)
+                raw_summary = await self._invoke_provider(provider_call, provider, context)
+                summary = sanitize_summary_text(raw_summary)
 
                 if not self._has_text(summary):
-                    raise ValueError("Provider returned empty summary")
+                    raise ValueError("Provider returned empty or non-report-safe summary")
 
                 enriched_summary = await self._enforce_quality_threshold(
                     provider_call,
@@ -139,7 +142,8 @@ class ProviderChain:
         )
 
         retry_context = self._build_quality_retry_context(context, minimum_words)
-        retry_summary = await self._invoke_provider(provider_call, provider, retry_context)
+        retry_raw_summary = await self._invoke_provider(provider_call, provider, retry_context)
+        retry_summary = sanitize_summary_text(retry_raw_summary)
         if not self._has_text(retry_summary):
             raise ValueError("Provider returned empty summary after quality retry")
 
@@ -182,6 +186,10 @@ class ProviderChain:
         prompt_hints.append(
             "Expand with concrete behavior and onboarding guidance. "
             f"Use at least {minimum_words} words."
+        )
+        prompt_hints.append(
+            "Return only the final onboarding summary and omit reasoning steps, task breakdowns, "
+            "or system/process commentary."
         )
 
         return context.with_updated_metadata(

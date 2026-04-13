@@ -258,7 +258,6 @@ class ContextBuilder:
             has_cycles = graph.has_cycles()
             runtime_flows = self._runtime_flow_samples(project, graph)
 
-        readme_excerpt = (project.readme_content or "")[:500]
         run_commands = self._extract_command_candidates(project.readme_content or "")
         architecture_hints = [
             "Explain major runtime flow from entry points into core modules.",
@@ -278,7 +277,6 @@ class ContextBuilder:
                 "primary_language": project.primary_language,
                 "module_count": project.module_count,
                 "directory_structure": "\n".join(structure_lines),
-                "readme_excerpt": readme_excerpt,
                 "has_circular_deps": has_cycles,
                 "runtime_flow_samples": runtime_flows,
                 "run_commands": run_commands,

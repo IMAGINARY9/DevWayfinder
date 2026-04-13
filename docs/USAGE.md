@@ -2,7 +2,7 @@
 
 > **Version:** 1.1.1  
 > **Status:** Active  
-> **Last Updated:** 2026-04-09  
+> **Last Updated:** 2026-04-13  
 > **Authoritative Source:** This document is the single source of truth for runtime usage and provider setup.
 
 ---
@@ -10,15 +10,15 @@
 ## 1. Quick Start
 
 ```bash
-# Guided one-command workflow (default: auto provider probe + deep quality)
+# Guided one-command workflow (default: auto provider probe + detailed mode)
 devwayfinder guide ./my-project --auto
 
-# Fast offline workflow (heuristic-only)
-devwayfinder guide ./my-project --quality fast --no-llm
+# Minimal offline workflow (heuristic-only)
+devwayfinder guide ./my-project --quality minimal --no-llm
 
 # Advanced/manual generation workflow
 devwayfinder generate ./my-project \
-  --quality balanced \
+  --quality detailed \
   --model-provider openai_compat \
   --base-url http://127.0.0.1:11434/v1
 ```
@@ -37,8 +37,8 @@ devwayfinder guide PATH [options]
 
 Behavior:
 
-1. Uses LLM-first generation by default (`--quality deep`)
-2. Auto-probes local endpoints by default (`--auto`)
+1. Uses LLM-first generation by default (`--quality detailed`)
+2. Auto-probes local endpoints by default (`--auto`) and validates both health and completion output before selection
 3. Writes guide output to `PATH/ONBOARDING_GUIDE.md` unless overridden
 4. Writes concise run report to `PATH/.devwayfinder/run_report.md`
 
@@ -47,7 +47,7 @@ Key options:
 | Option | Description |
 |--------|-------------|
 | `-o, --output PATH` | Write guide to custom file path |
-| `--quality PROFILE` | `deep`, `balanced`, `fast` |
+| `--quality PROFILE` | `minimal`, `detailed` |
 | `--auto / --manual` | Enable/disable provider auto-probing |
 | `--no-llm` | Force heuristic-only mode |
 | `--model-name NAME` | Optional model override |
@@ -78,8 +78,8 @@ Options:
 | `--base-url URL` | Provider endpoint URL |
 | `--api-key KEY` | API key (or `DEVWAYFINDER_API_KEY`) |
 | `--no-llm` | Force heuristic-only summarization |
-| `--quality PROFILE` | `deep`, `balanced`, `fast` |
-| `--auto` | Auto-probe local providers and use first healthy endpoint |
+| `--quality PROFILE` | `minimal`, `detailed` |
+| `--auto` | Auto-probe local providers and use the first endpoint that passes health and completion checks |
 | `--guide-template PATH` | Use a custom guide template YAML |
 | `-v, --verbose` | Show verbose CLI diagnostics |
 
@@ -96,7 +96,7 @@ devwayfinder analyze PATH [--json] [--verbose]
 Validate provider health and completion:
 
 ```bash
-devwayfinder test-model --provider ollama --model mistral:7b
+devwayfinder test-model --provider PROVIDER [--model MODEL] [--base-url URL]
 ```
 
 Behavior notes:
@@ -135,7 +135,7 @@ devwayfinder test-model \
   --base-url http://127.0.0.1:11434/v1
 ```
 
-Endpoint contract:
+OpenAI-compatible endpoint contract:
 
 - Health probe: `GET /models`
 - Completion probe: `POST /chat/completions`
@@ -147,7 +147,7 @@ ollama pull mistral:7b
 devwayfinder test-model --provider ollama --model mistral:7b
 ```
 
-Endpoint contract:
+Ollama endpoint contract:
 
 - Health probe: `GET /api/tags`
 - Completion probe: `POST /api/generate`
@@ -205,8 +205,8 @@ This reporting is always enabled in current MVP behavior.
 Quality and fallback visibility:
 
 - Guides include a quality banner with `Quality Profile`, `LLM Coverage`, and fallback level.
-- Deep/balanced profiles run extra synthesis passes for architecture and start-here guidance.
-- Fast profile is optimized for speed and defaults to heuristic-only behavior.
+- Detailed mode runs extra synthesis passes for architecture and start-here guidance.
+- Minimal mode is optimized for speed and defaults to heuristic-only behavior.
 
 ---
 

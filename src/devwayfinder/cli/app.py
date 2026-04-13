@@ -19,6 +19,7 @@ from devwayfinder.core.exceptions import DevWayfinderError
 from devwayfinder.core.protocols import ModelProvider, SummarizationContext
 from devwayfinder.generators import GenerationConfig, GenerationResult, GuideGenerator
 from devwayfinder.providers import create_provider, load_provider_config, supported_providers
+from devwayfinder.summarizers.output_sanitizer import sanitize_summary_text
 from devwayfinder.utils.tokens import TokenEstimate, estimate_cost
 from devwayfinder.version import get_version
 
@@ -31,7 +32,14 @@ app = typer.Typer(
 console = create_console()
 SUPPORTED_PROVIDER_HELP = ", ".join(supported_providers())
 
-QUALITY_PROFILES = ("deep", "balanced", "fast")
+QUALITY_PROFILES = ("minimal", "detailed")
+
+QUALITY_ALIASES = {
+    "deep": "detailed",
+    "balanced": "detailed",
+    "fast": "minimal",
+    "quick": "minimal",
+}
 
 AUTO_PROVIDER_CANDIDATES: tuple[tuple[str, str], ...] = (
     ("openai_compat", "http://127.0.0.1:11434/v1"),
@@ -82,9 +90,9 @@ def generate(
         help="Use heuristic mode (no LLM)",
     ),
     quality: str = typer.Option(
-        "deep",
+        "detailed",
         "--quality",
-        help="Quality profile: deep, balanced, fast",
+        help="Report detail mode: minimal, detailed",
     ),
     auto: bool = typer.Option(
         False,
@@ -134,9 +142,9 @@ def guide(
         help="Guide output path (default: PATH/ONBOARDING_GUIDE.md)",
     ),
     quality: str = typer.Option(
-        "deep",
+        "detailed",
         "--quality",
-        help="Quality profile: deep, balanced, fast",
+        help="Report detail mode: minimal, detailed",
     ),
     auto: bool = typer.Option(
         True,
@@ -240,9 +248,11 @@ async def _generate_async(
         console.print(f"[red]ConfigurationError:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
-    effective_no_llm = no_llm or quality_profile == "fast"
-    if quality_profile == "fast" and not no_llm:
-        console.print("[yellow]Quality profile 'fast' uses heuristic mode for quick runs.[/yellow]")
+    effective_no_llm = no_llm or quality_profile == "minimal"
+    if quality_profile == "minimal" and not no_llm:
+        console.print(
+            "[yellow]Quality profile 'minimal' uses heuristic mode for quick overview runs.[/yellow]"
+        )
 
     # Build LLM provider if needed
     providers: list[ModelProvider] = []
@@ -345,6 +355,7 @@ async def _generate_async(
 
         if output:
             output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(markdown, encoding="utf-8")
             console.print(f"\n[green]Guide written to:[/green] {output_path}")
         else:
@@ -438,7 +449,7 @@ def _estimate_preflight_cost(
     total_input = module_count * avg_input_tokens
     total_output = module_count * avg_output_tokens
 
-    if quality_profile in {"deep", "balanced"}:
+    if quality_profile == "detailed":
         total_input += 500  # architecture + entry-point synthesis context overhead
         total_output += 350
 
@@ -450,7 +461,7 @@ def _estimate_preflight_cost(
         total_tokens=total_tokens,
     )
     cost = estimate_cost(estimate, model_name=model_name)
-    extra_ops = 2 if quality_profile in {"deep", "balanced"} else 0
+    extra_ops = 2 if quality_profile == "detailed" else 0
 
     return {
         "llm_operations": module_count + extra_ops,
@@ -462,6 +473,7 @@ def _estimate_preflight_cost(
 def _normalize_quality_profile(quality: str) -> str:
     """Validate and normalize quality profile names."""
     normalized = quality.strip().lower()
+    normalized = QUALITY_ALIASES.get(normalized, normalized)
     if normalized not in QUALITY_PROFILES:
         valid = ", ".join(QUALITY_PROFILES)
         raise ValueError(f"Unsupported quality profile '{quality}'. Use: {valid}")
@@ -475,7 +487,7 @@ async def _auto_select_provider(
     base_url: str | None,
     verbose: bool,
 ) -> tuple[list[ModelProvider], str]:
-    """Probe likely local endpoints and return the first healthy provider."""
+    """Probe likely endpoints and return the first provider that passes completion checks."""
     candidates: list[tuple[str, str]] = []
     if base_url:
         base = base_url.rstrip("/")
@@ -515,15 +527,23 @@ async def _auto_select_provider(
         keep_provider = False
         try:
             health = await provider.health_check()
-            if health.healthy:
-                resolved_endpoint = config.resolved_base_url() or endpoint
-                label = f"{provider.name}@{resolved_endpoint}"
-                keep_provider = True
-                if verbose:
-                    console.print(f"[dim]Auto-selected provider: {label}[/dim]")
-                return [provider], label
+            if not health.healthy:
+                diagnostics.append(f"{provider.name}@{endpoint}: unhealthy ({health.message})")
+                continue
 
-            diagnostics.append(f"{provider.name}@{endpoint}: unhealthy ({health.message})")
+            completion_ok, completion_note = await _probe_provider_completion(provider)
+            if not completion_ok:
+                diagnostics.append(
+                    f"{provider.name}@{endpoint}: completion check failed ({completion_note})"
+                )
+                continue
+
+            resolved_endpoint = config.resolved_base_url() or endpoint
+            label = f"{provider.name}@{resolved_endpoint}"
+            keep_provider = True
+            if verbose:
+                console.print(f"[dim]Auto-selected provider: {label} ({completion_note})[/dim]")
+            return [provider], label
         except Exception as exc:
             diagnostics.append(f"{provider_name}@{endpoint}: {exc}")
         finally:
@@ -538,6 +558,28 @@ async def _auto_select_provider(
             console.print(f"[dim]  - {line}[/dim]")
 
     return [], "heuristic"
+
+
+async def _probe_provider_completion(provider: ModelProvider) -> tuple[bool, str]:
+    """Run a lightweight completion probe to ensure generated output is report-safe."""
+    sample_context = SummarizationContext(
+        module_name="devwayfinder.providers.factory",
+        docstrings=["Creates configured model providers for onboarding summaries."],
+        signatures=["create_provider(config: ProviderConfig) -> ModelProvider"],
+        imports=["devwayfinder.providers.ollama", "devwayfinder.providers.openai_compat"],
+        exports=["create_provider", "supported_providers"],
+    )
+
+    raw_summary = await provider.summarize(sample_context)
+    cleaned_summary = sanitize_summary_text(raw_summary)
+    if not cleaned_summary:
+        return False, "empty or reasoning-only output"
+
+    word_count = len(cleaned_summary.split())
+    if word_count < 8:
+        return False, f"summary too short ({word_count} words)"
+
+    return True, f"{word_count} words"
 
 
 def _write_run_report(
@@ -562,11 +604,9 @@ def _write_run_report(
     lines = [
         "# DevWayfinder Run Report",
         "",
-        f"- Project: `{project_path}`",
-        f"- Quality Profile: `{quality_profile}`",
+        f"- Project: `{project_path.name}`",
+        f"- Detail Mode: `{quality_profile}`",
         f"- Provider: `{provider_label}`",
-        f"- Auto Mode: `{auto_mode}`",
-        f"- Heuristic Mode: `{heuristic_mode}`",
         f"- Modules Analyzed: `{result.modules_analyzed}`",
         f"- Modules Summarized: `{result.modules_summarized}`",
         f"- Module LLM Coverage: `{module_coverage:.1f}% ({module_llm}/{result.modules_summarized})`",
@@ -584,8 +624,21 @@ def _write_run_report(
         lines.append("")
         lines.append("## Errors")
         lines.append("")
-        for err in result.errors[:8]:
+        deduped_errors = list(dict.fromkeys(result.errors))
+        for err in deduped_errors[:8]:
             lines.append(f"- {err}")
+
+    lines.append("")
+    lines.append("## Notes")
+    lines.append("")
+    if heuristic_mode:
+        lines.append("- Generated in heuristic-only mode.")
+    elif auto_mode:
+        lines.append(
+            "- Provider selected through auto detection after health and completion checks."
+        )
+    else:
+        lines.append("- Provider was selected manually via CLI arguments.")
 
     report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -916,12 +969,15 @@ async def _test_model_async(
             imports=["devwayfinder.providers.ollama", "devwayfinder.providers.openai"],
             exports=["create_provider", "supported_providers"],
         )
-        summary = await llm_provider.summarize(sample_context)
-        if summary:
+        raw_summary = await llm_provider.summarize(sample_context)
+        summary = sanitize_summary_text(raw_summary)
+        if summary and len(summary.split()) >= 8:
             console.print("[green]Completion check passed[/green]")
             console.print(f"Preview: {summary[:160]}")
         else:
-            console.print("[yellow]Completion returned an empty response[/yellow]")
+            console.print(
+                "[yellow]Completion returned empty output or reasoning-only content[/yellow]"
+            )
             raise typer.Exit(code=1)
     except DevWayfinderError as exc:
         console.print(f"[red]{exc.__class__.__name__}:[/red] {exc}")
