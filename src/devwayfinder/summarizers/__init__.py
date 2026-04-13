@@ -16,6 +16,7 @@ from devwayfinder.summarizers.retry import RetryManager
 from devwayfinder.summarizers.templates import (
     ARCHITECTURE_SUMMARY_TEMPLATE,
     CORE_MODULE_TEMPLATE,
+    DEPENDENCY_SUMMARY_TEMPLATE,
     ENTRY_POINT_SUMMARY_TEMPLATE,
     MODULE_SUMMARY_TEMPLATE,
     UTILITY_MODULE_TEMPLATE,
@@ -28,6 +29,7 @@ from devwayfinder.summarizers.templates import (
 __all__ = [
     "ARCHITECTURE_SUMMARY_TEMPLATE",
     "CORE_MODULE_TEMPLATE",
+    "DEPENDENCY_SUMMARY_TEMPLATE",
     "ENTRY_POINT_SUMMARY_TEMPLATE",
     "MODULE_SUMMARY_TEMPLATE",
     "UTILITY_MODULE_TEMPLATE",

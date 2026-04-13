@@ -299,6 +299,7 @@ class TestGuideGenerator:
         generator = GuideGenerator(sample_project, config)
 
         assert generator.config.use_llm is False
+        assert generator.config.llm_dependency_pass is False
 
     @pytest.mark.asyncio
     async def test_dependencies_section_with_mermaid(self, sample_project: Path) -> None:
@@ -312,8 +313,12 @@ class TestGuideGenerator:
         assert deps is not None
         # Mermaid might not appear if there are no edges
         assert "Total Modules" in deps.content
+        assert "Static analysis scope" in deps.content
+        assert "Cross-Component Dependencies" in deps.content
         assert "Component Interaction Matrix" in deps.content
         assert "Source / Target" in deps.content
+        assert "Inbound Total" in deps.content
+        assert "Cross-Component Interaction Highlights" in deps.content
 
     @pytest.mark.asyncio
     async def test_exclude_patterns_work(self, sample_project: Path) -> None:

@@ -11,6 +11,7 @@ from devwayfinder.core.models import Module, ModuleType, Project
 from devwayfinder.core.protocols import HealthStatus, SummarizationContext
 from devwayfinder.summarizers import (
     ARCHITECTURE_SUMMARY_TEMPLATE,
+    DEPENDENCY_SUMMARY_TEMPLATE,
     ENTRY_POINT_SUMMARY_TEMPLATE,
     MODULE_SUMMARY_TEMPLATE,
     ContextBuilder,
@@ -124,6 +125,10 @@ class TestPromptTemplates:
     def test_entry_point_template_exists(self) -> None:
         """Entry point summary template should be defined."""
         assert ENTRY_POINT_SUMMARY_TEMPLATE is not None
+
+    def test_dependency_template_exists(self) -> None:
+        """Dependency summary template should be defined."""
+        assert DEPENDENCY_SUMMARY_TEMPLATE is not None
 
     def test_get_template(self) -> None:
         """get_template should return correct template."""
@@ -329,6 +334,42 @@ class TestContextBuilder:
         assert context.module_name == "TestProject"
         assert context.metadata["build_system"] == "poetry"
         assert context.metadata["module_count"] == 1
+
+    def test_for_dependency_landscape(
+        self,
+        project_root: Path,
+        sample_module: Module,
+    ) -> None:
+        """Should build dependency-landscape context with interaction metadata."""
+        from devwayfinder.core.graph import DependencyGraph
+
+        dep_module = Module(
+            name="ui.py",
+            path=project_root / "ui.py",
+            module_type=ModuleType.FILE,
+        )
+        project = Project(
+            name="TestProject",
+            root_path=project_root,
+            modules={
+                str(sample_module.path): sample_module,
+                str(dep_module.path): dep_module,
+            },
+        )
+
+        graph = DependencyGraph()
+        graph.add_module(sample_module)
+        graph.add_module(dep_module)
+        graph.add_dependency(sample_module.path, dep_module.path)
+
+        builder = ContextBuilder(project_root)
+        context = builder.for_dependency_landscape(project, graph)
+
+        assert "component_count" in context.metadata
+        assert "cross_component_edges" in context.metadata
+        assert context.metadata["cross_component_edges"] == 1
+        assert "top_component_links" in context.metadata
+        assert isinstance(context.metadata["top_component_links"], list)
 
     def test_for_entry_point(self, project_root: Path, entry_point_module: Module) -> None:
         """Should build entry point context with special metadata."""
@@ -600,6 +641,43 @@ class TestSummarizationController:
         assert result.summary_type == SummarizationType.ARCHITECTURE
 
     @pytest.mark.asyncio
+    async def test_summarize_dependency_landscape(
+        self,
+        project_root: Path,
+        sample_module: Module,
+        mock_provider: MagicMock,
+    ) -> None:
+        """Should summarize dependency landscape with dependency summary type."""
+        from devwayfinder.core.graph import DependencyGraph
+
+        dep_module = Module(
+            name="events.py",
+            path=project_root / "events.py",
+            module_type=ModuleType.FILE,
+        )
+        project = Project(
+            name="TestProject",
+            root_path=project_root,
+            modules={
+                str(sample_module.path): sample_module,
+                str(dep_module.path): dep_module,
+            },
+        )
+
+        graph = DependencyGraph()
+        graph.add_module(sample_module)
+        graph.add_module(dep_module)
+        graph.add_dependency(sample_module.path, dep_module.path)
+
+        config = SummarizationConfig(providers=[mock_provider])
+        controller = SummarizationController(project_root, config)
+
+        result = await controller.summarize_dependency_landscape(project, graph)
+
+        assert result.success
+        assert result.summary_type == SummarizationType.DEPENDENCY
+
+    @pytest.mark.asyncio
     async def test_batch_summarization(
         self,
         project_root: Path,
@@ -732,6 +810,30 @@ class TestHeuristicSummaries:
 
         assert "main.py" in summary
         assert "__main__" in summary or "directly" in summary
+
+    @pytest.mark.asyncio
+    async def test_dependency_heuristic(self, project_root: Path) -> None:
+        """Heuristic dependency summary should include scope and interaction highlights."""
+        controller = SummarizationController(project_root)
+        context = SummarizationContext(
+            module_name="TestProject dependency landscape",
+            metadata={
+                "component_count": 3,
+                "cross_component_edges": 7,
+                "top_component_links": [
+                    "src -> data: 4 edge(s), 57.1%",
+                    "ui -> src: 2 edge(s), 28.6%",
+                ],
+                "runtime_flow_samples": ["main -> game -> ui"],
+                "interaction_focus_modules": ["src/ui.py", "src/events.py"],
+            },
+        )
+
+        summary = controller._heuristic_dependency_summary(context)
+
+        assert "3 component(s)" in summary
+        assert "Strongest links" in summary
+        assert "static import/script-order analysis" in summary
 
 
 # =============================================================================

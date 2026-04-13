@@ -119,6 +119,7 @@ class TestGenerateCommand:
         assert "--guide-template" in output
         assert "--quality" in output
         assert "--auto" in output
+        assert "--mermaid" in output
 
     def test_generate_heuristic_mode(self, tmp_path: Path) -> None:
         """Test generate command with heuristics only."""
@@ -223,6 +224,7 @@ class TestGuideCommand:
         assert "one-command" in output.lower()
         assert "--quality" in output
         assert "--auto" in output
+        assert "--mermaid" in output
 
     def test_guide_writes_default_outputs(self, tmp_path: Path) -> None:
         """Guide command should emit both guide and concise run report by default."""

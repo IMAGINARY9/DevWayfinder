@@ -185,12 +185,16 @@ DEPENDENCY_SUMMARY_TEMPLATE = PromptTemplate(
         "Your task is to explain:\n"
         "1. Why components depend on each other\n"
         "2. The flow of data and control between modules\n"
-        "3. Potential architectural concerns (circular deps, tight coupling)\n\n"
-        "Be analytical and practical. Focus on what developers need to know."
+        "3. Potential architectural concerns (circular deps, tight coupling)\n"
+        "4. Which interaction paths are observed facts vs inferred workflow hypotheses\n\n"
+        "Be analytical and practical. Focus on what developers need to know and call out"
+        " uncertainty explicitly. Do not fabricate architecture mechanisms that are not"
+        " supported by the provided context."
     ),
     user_prompt_template=(
-        "Analyze the dependency relationships and explain the module organization.\n\n"
-        "Module: {module_name}\n"
+        "Analyze this dependency landscape and explain the module organization,"
+        " interaction boundaries, and likely workflow slices.\n\n"
+        "Scope: {module_name}\n"
         "{context}"
     ),
     max_tokens=200,

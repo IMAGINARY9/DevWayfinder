@@ -53,6 +53,7 @@ Key options:
 | `--model-name NAME` | Optional model override |
 | `--base-url URL` | Optional endpoint override |
 | `--api-key KEY` | API key (or `DEVWAYFINDER_API_KEY`) |
+| `--mermaid / --no-mermaid` | Include Mermaid dependency map blocks (default: `--no-mermaid`) |
 | `-v, --verbose` | Show probe diagnostics |
 
 ### 2.2 `generate`
@@ -80,6 +81,7 @@ Options:
 | `--no-llm` | Force heuristic-only summarization |
 | `--quality PROFILE` | `minimal`, `detailed` |
 | `--auto` | Auto-probe local providers and use the first endpoint that passes health and completion checks |
+| `--mermaid / --no-mermaid` | Include Mermaid dependency map blocks (default: `--no-mermaid`) |
 | `--guide-template PATH` | Use a custom guide template YAML |
 | `-v, --verbose` | Show verbose CLI diagnostics |
 
@@ -205,7 +207,9 @@ This reporting is always enabled in current MVP behavior.
 Quality and fallback visibility:
 
 - Guides include a quality banner with `Quality Profile`, `LLM Coverage`, and fallback level.
-- Detailed mode runs extra synthesis passes for architecture and start-here guidance.
+- Dependencies include a portable interaction matrix (with totals) and concrete cross-component file examples; Mermaid maps are opt-in via `--mermaid`.
+- Dependency scope is static import/script-order analysis; runtime workflows are inferred in narrative synthesis.
+- Detailed mode runs extra synthesis passes for architecture, start-here guidance, and dependency interactions when cross-component signal is strong enough.
 - Minimal mode is optimized for speed and defaults to heuristic-only behavior.
 
 ---

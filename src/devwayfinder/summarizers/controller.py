@@ -17,6 +17,7 @@ from devwayfinder.summarizers.provider_chain import ProviderChain
 from devwayfinder.summarizers.retry import RetryManager
 from devwayfinder.summarizers.templates import (
     ARCHITECTURE_SUMMARY_TEMPLATE,
+    DEPENDENCY_SUMMARY_TEMPLATE,
     ENTRY_POINT_SUMMARY_TEMPLATE,
     PromptTemplate,
     SummarizationType,
@@ -281,6 +282,19 @@ class SummarizationController:
             summary_type=SummarizationType.ARCHITECTURE,
         )
 
+    async def summarize_dependency_landscape(
+        self,
+        project: Project,
+        graph: DependencyGraph,
+    ) -> SummarizationResult:
+        """Generate a dependency interaction and workflow-oriented summary."""
+        context = self.context_builder.for_dependency_landscape(project, graph)
+        return await self._summarize_with_fallback(
+            context=context,
+            template=DEPENDENCY_SUMMARY_TEMPLATE,
+            summary_type=SummarizationType.DEPENDENCY,
+        )
+
     # =========================================================================
     # Entry Point Summarization
     # =========================================================================
@@ -445,6 +459,8 @@ class SummarizationController:
             return self._heuristic_architecture_summary(context)
         elif summary_type == SummarizationType.ENTRY_POINT:
             return self._heuristic_entry_point_summary(context)
+        elif summary_type == SummarizationType.DEPENDENCY:
+            return self._heuristic_dependency_summary(context)
         else:
             return self._heuristic_module_summary(context)
 
@@ -516,6 +532,44 @@ class SummarizationController:
 
         return " ".join(parts)
 
+    def _heuristic_dependency_summary(self, context: SummarizationContext) -> str:
+        """Generate heuristic summary for dependency interaction context."""
+        meta = context.metadata
+        parts: list[str] = []
+
+        component_count = meta.get("component_count")
+        cross_edges = meta.get("cross_component_edges")
+        if component_count is not None and cross_edges is not None:
+            parts.append(
+                f"Static dependency analysis found {component_count} component(s) with"
+                f" {cross_edges} cross-component edge(s)."
+            )
+
+        top_links = meta.get("top_component_links")
+        if isinstance(top_links, list):
+            highlights = [str(item).strip() for item in top_links[:3] if str(item).strip()]
+            if highlights:
+                parts.append(f"Strongest links: {'; '.join(highlights)}.")
+
+        runtime_flows = meta.get("runtime_flow_samples")
+        if isinstance(runtime_flows, list):
+            flows = [str(item).strip() for item in runtime_flows[:2] if str(item).strip()]
+            if flows:
+                parts.append(f"Likely runtime slices: {'; '.join(flows)}.")
+
+        ui_focus = meta.get("interaction_focus_modules")
+        if isinstance(ui_focus, list):
+            modules = [str(item).strip() for item in ui_focus[:4] if str(item).strip()]
+            if modules:
+                parts.append(f"Potential UI/event interaction surfaces: {', '.join(modules)}.")
+
+        parts.append(
+            "Scope note: this is static import/script-order analysis, so runtime behavior is"
+            " inferred rather than directly traced."
+        )
+
+        return " ".join(parts)
+
     def _apply_quality_metadata(
         self,
         context: SummarizationContext,
@@ -559,6 +613,13 @@ class SummarizationController:
         if summary_type == SummarizationType.ARCHITECTURE:
             hints.append(
                 "Describe component interactions and runtime flow, not just directory layout."
+            )
+        elif summary_type == SummarizationType.DEPENDENCY:
+            hints.append(
+                "Differentiate observed static dependencies from inferred runtime workflows."
+            )
+            hints.append(
+                "Call out high-traffic boundaries and likely user-facing interaction paths."
             )
         elif summary_type == SummarizationType.ENTRY_POINT:
             hints.append("Include concrete first steps and the next modules to read.")

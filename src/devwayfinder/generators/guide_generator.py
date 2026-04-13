@@ -66,6 +66,7 @@ class GenerationConfig:
     minimum_architecture_words: int = 0
     minimum_entry_point_words: int = 0
     llm_architecture_pass: bool = True
+    llm_dependency_pass: bool = True
     llm_entry_point_pass: bool = True
 
     # Output options
@@ -151,6 +152,8 @@ class GuideGenerator:
         self._summary_output_tokens: dict[str, int] = {}
         self._architecture_summary: str = ""
         self._architecture_provider: str = "none"
+        self._dependency_summary: str = ""
+        self._dependency_provider: str = "none"
         self._entry_point_guidance: dict[str, str] = {}
         self._entry_point_providers: dict[str, str] = {}
 
@@ -161,6 +164,7 @@ class GuideGenerator:
             "minimum_architecture_words": 90,
             "minimum_entry_point_words": 50,
             "llm_architecture_pass": True,
+            "llm_dependency_pass": True,
             "llm_entry_point_pass": True,
         },
         "minimal": {
@@ -169,6 +173,7 @@ class GuideGenerator:
             "minimum_architecture_words": 0,
             "minimum_entry_point_words": 0,
             "llm_architecture_pass": False,
+            "llm_dependency_pass": False,
             "llm_entry_point_pass": False,
         },
     }
@@ -354,6 +359,37 @@ class GuideGenerator:
                 )
                 if architecture_result.provider_used != "heuristic":
                     self._llm_calls += 1
+
+        if self._project and self._graph and self.config.llm_dependency_pass:
+            if self._dependency_synthesis_low_signal():
+                self._dependency_summary = (
+                    "Cross-component evidence is limited in this static graph; use the"
+                    " interaction matrix and concrete edge highlights below as the primary"
+                    " source of truth."
+                )
+                self._dependency_provider = "heuristic"
+            else:
+                if progress_callback:
+                    progress_callback(
+                        "summarization", "progress", "Dependency interaction synthesis"
+                    )
+
+                dependency_result = await self.summarizer.summarize_dependency_landscape(
+                    self._project,
+                    self._graph,
+                )
+                if dependency_result.success and dependency_result.summary:
+                    self._dependency_summary = dependency_result.summary
+                    self._dependency_provider = dependency_result.provider_used
+                    self._summary_tokens["__dependency__"] = dependency_result.tokens_used or 0
+                    self._summary_input_tokens["__dependency__"] = (
+                        dependency_result.input_tokens or 0
+                    )
+                    self._summary_output_tokens["__dependency__"] = (
+                        dependency_result.output_tokens or 0
+                    )
+                    if dependency_result.provider_used != "heuristic":
+                        self._llm_calls += 1
 
         if not (self._project and self._graph and self.config.llm_entry_point_pass):
             return
@@ -559,9 +595,26 @@ class GuideGenerator:
                 self._component_dependency_summary()
             )
 
+            lines.append(
+                "Static analysis scope: module-level import edges and non-module script-tag"
+                " load-order edges from index.html."
+            )
+            lines.append(
+                "Runtime call chains, class-method dispatch, UI event timing, and data"
+                " mutation paths are inferred only in narrative synthesis."
+            )
+            lines.append("")
+
+            if self._dependency_summary:
+                lines.append(
+                    f"> {self._quality_badge(self._dependency_provider)} {self._dependency_summary}"
+                )
+                lines.append("")
+
             lines.append(f"**Total Modules:** {self._graph.node_count}")
             lines.append(f"**Total Dependencies:** {self._graph.edge_count}")
             lines.append(f"**Components:** {len(component_modules)}")
+            lines.append(f"**Cross-Component Dependencies:** {sum(component_edges.values())}")
             if internal_edges:
                 lines.append(f"**Within-Component Dependencies:** {internal_edges}")
             lines.append("")
@@ -596,15 +649,9 @@ class GuideGenerator:
                 lines.append("")
 
             if component_edges:
-                lines.append("### Strongest Component Links")
+                lines.append("### Cross-Component Interaction Highlights")
                 lines.append("")
-                strongest_links = sorted(
-                    component_edges.items(),
-                    key=lambda item: item[1],
-                    reverse=True,
-                )[:8]
-                for (source, target), edge_count in strongest_links:
-                    lines.append(f"- **{source} -> {target}**: {edge_count} dependency edge(s)")
+                lines.extend(self._component_edge_highlights(component_edges))
                 lines.append("")
 
             lines.append("### Dependency Hubs")
@@ -735,6 +782,9 @@ class GuideGenerator:
         self.config.llm_architecture_pass = bool(
             self.config.llm_architecture_pass and defaults["llm_architecture_pass"]
         )
+        self.config.llm_dependency_pass = bool(
+            self.config.llm_dependency_pass and defaults["llm_dependency_pass"]
+        )
         self.config.llm_entry_point_pass = bool(
             self.config.llm_entry_point_pass and defaults["llm_entry_point_pass"]
         )
@@ -815,6 +865,29 @@ class GuideGenerator:
 
         return lines
 
+    def _dependency_synthesis_low_signal(self) -> bool:
+        """Determine whether dependency synthesis would be mostly speculative."""
+        if not self._graph:
+            return True
+
+        cross_edges = 0
+        script_order_cross = 0
+        for source, target, kind in self._graph.iter_edges():
+            source_component = self._component_label(source.path)
+            target_component = self._component_label(target.path)
+            if source_component == target_component:
+                continue
+
+            cross_edges += 1
+            if kind == "script_order":
+                script_order_cross += 1
+
+        if cross_edges < 3:
+            return True
+
+        script_ratio = script_order_cross / max(1, cross_edges)
+        return script_ratio >= 0.75
+
     def _component_dependency_summary(
         self,
     ) -> tuple[dict[str, list[Module]], dict[tuple[str, str], int], int]:
@@ -851,20 +924,71 @@ class GuideGenerator:
         max_edges: int = 24,
     ) -> str:
         """Render a compact component-level Mermaid graph."""
-        lines = ["graph LR"]
+        lines = ["flowchart LR"]
+
+        cross_out: dict[str, int] = dict.fromkeys(component_modules, 0)
+        cross_in: dict[str, int] = dict.fromkeys(component_modules, 0)
+        for (source, target), edge_count in component_edges.items():
+            cross_out[source] = cross_out.get(source, 0) + edge_count
+            cross_in[target] = cross_in.get(target, 0) + edge_count
+
         ordered_components = sorted(
             component_modules.items(),
-            key=lambda item: len(item[1]),
-            reverse=True,
+            key=lambda item: (
+                -(cross_out.get(item[0], 0) + cross_in.get(item[0], 0)),
+                -len(item[1]),
+                item[0],
+            ),
         )[:max_components]
         selected = [name for name, _ in ordered_components]
         selected_set = set(selected)
-        node_ids = {name: f"c{index}" for index, name in enumerate(selected)}
+        node_ids: dict[str, str] = {}
+        used_ids: set[str] = set()
+        for name in selected:
+            base = re.sub(r"[^a-zA-Z0-9]+", "_", name).strip("_").lower() or "component"
+            candidate = f"comp_{base}"
+            suffix = 2
+            while candidate in used_ids:
+                candidate = f"comp_{base}_{suffix}"
+                suffix += 1
+
+            node_ids[name] = candidate
+            used_ids.add(candidate)
+
+        lines.append(
+            "    classDef component fill:#edf5ff,stroke:#2563eb,stroke-width:1px,color:#0f172a"
+        )
+        lines.append(
+            "    classDef hotspot fill:#fff7ed,stroke:#c2410c,stroke-width:2px,color:#7c2d12"
+        )
 
         for name in selected:
-            label = f"{name} ({len(component_modules[name])})".replace('"', r"\"")
+            label = (
+                f"{name}<br/>{len(component_modules[name])} module(s)"
+                f"<br/>out:{cross_out.get(name, 0)} in:{cross_in.get(name, 0)}"
+            ).replace('"', r"\"")
             lines.append(f'    {node_ids[name]}["{label}"]')
 
+        if node_ids:
+            lines.append(f"    class {','.join(node_ids.values())} component")
+
+        traffic = {name: cross_out.get(name, 0) + cross_in.get(name, 0) for name in selected}
+        max_traffic = max(traffic.values(), default=0)
+        min_traffic = min(traffic.values(), default=0)
+        hotspot_ids: list[str] = []
+        if max_traffic > min_traffic:
+            top_hotspots = sorted(
+                selected,
+                key=lambda name: traffic.get(name, 0),
+                reverse=True,
+            )[: min(3, len(selected))]
+            hotspot_ids = [
+                node_ids[name] for name in top_hotspots if node_ids.get(name) and traffic[name] > 0
+            ]
+        if hotspot_ids:
+            lines.append(f"    class {','.join(hotspot_ids)} hotspot")
+
+        total_cross_edges = max(1, sum(component_edges.values()))
         included_edges = 0
         for (source, target), edge_count in sorted(
             component_edges.items(),
@@ -874,13 +998,18 @@ class GuideGenerator:
             if source not in selected_set or target not in selected_set:
                 continue
 
-            lines.append(f"    {node_ids[source]} -->|{edge_count}| {node_ids[target]}")
+            percent = (edge_count / total_cross_edges) * 100
+            lines.append(
+                f"    {node_ids[source]} -->|{edge_count} ({percent:.0f}%)| {node_ids[target]}"
+            )
             included_edges += 1
             if included_edges >= max_edges:
                 break
 
         if included_edges == 0:
             lines.append("    %% No cross-component edges in selected components")
+        elif included_edges >= max_edges and len(component_edges) > max_edges:
+            lines.append(f"    %% Showing top {max_edges} cross-component edges by weight")
 
         return "\n".join(lines)
 
@@ -891,37 +1020,118 @@ class GuideGenerator:
         max_components: int = 8,
     ) -> list[str]:
         """Render a markdown table for quick human scanning of cross-component edges."""
+        cross_out: dict[str, int] = dict.fromkeys(component_modules, 0)
+        cross_in: dict[str, int] = dict.fromkeys(component_modules, 0)
+        for (source, target), edge_count in component_edges.items():
+            cross_out[source] = cross_out.get(source, 0) + edge_count
+            cross_in[target] = cross_in.get(target, 0) + edge_count
+
         ordered_components = sorted(
             component_modules.items(),
-            key=lambda item: len(item[1]),
-            reverse=True,
+            key=lambda item: (
+                -(cross_out.get(item[0], 0) + cross_in.get(item[0], 0)),
+                -len(item[1]),
+                item[0],
+            ),
         )[:max_components]
         components = [name for name, _ in ordered_components]
 
         if len(components) < 2:
             return ["Not enough components to build an interaction matrix."]
 
+        total_cross_edges = sum(component_edges.values())
+
         lines: list[str] = [
-            "Cell values are dependency edge counts from row component to column component.",
+            "Cell values are static dependency edge counts from row component to column component.",
             "",
         ]
 
-        header = "| Source / Target | " + " | ".join(f"`{name}`" for name in components) + " |"
-        divider = "|---|" + "|".join("---" for _ in components) + "|"
+        header = (
+            "| Source / Target | "
+            + " | ".join(f"`{name}`" for name in components)
+            + " | Outbound Total |"
+        )
+        divider = "|---|" + "|".join("---" for _ in components) + "|---|"
         lines.append(header)
         lines.append(divider)
 
         for source in components:
             row_values: list[str] = []
+            row_total = 0
             for target in components:
                 if source == target:
                     row_values.append("-")
                 else:
-                    row_values.append(str(component_edges.get((source, target), 0)))
+                    edge_count = component_edges.get((source, target), 0)
+                    row_total += edge_count
+                    row_values.append(str(edge_count))
 
-            lines.append(f"| `{source}` | {' | '.join(row_values)} |")
+            lines.append(f"| `{source}` | {' | '.join(row_values)} | {row_total} |")
+
+        inbound_values = [str(cross_in.get(component, 0)) for component in components]
+        lines.append(
+            f"| **Inbound Total** | {' | '.join(inbound_values)} | **{total_cross_edges}** |"
+        )
+
+        module_counts = [str(len(component_modules[component])) for component in components]
+        lines.append(f"| **Module Count** | {' | '.join(module_counts)} | - |")
 
         return lines
+
+    def _component_edge_highlights(
+        self,
+        component_edges: dict[tuple[str, str], int],
+        max_pairs: int = 8,
+        examples_per_pair: int = 2,
+    ) -> list[str]:
+        """Render top cross-component links with concrete module-level examples."""
+        if not self._graph:
+            return []
+
+        pair_examples: dict[tuple[str, str], list[str]] = {}
+        for source, target, kind in self._graph.iter_edges():
+            source_component = self._component_label(source.path)
+            target_component = self._component_label(target.path)
+            if source_component == target_component:
+                continue
+
+            key = (source_component, target_component)
+            source_path = self._relative_module_path(source)
+            target_path = self._relative_module_path(target)
+            descriptor = f"{source_path} -> {target_path} ({kind})"
+            bucket = pair_examples.setdefault(key, [])
+            if descriptor not in bucket:
+                bucket.append(descriptor)
+
+        total_cross_edges = max(1, sum(component_edges.values()))
+        highlights: list[str] = []
+
+        strongest_links = sorted(
+            component_edges.items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )[:max_pairs]
+
+        for (source_component, target_component), edge_count in strongest_links:
+            share = (edge_count / total_cross_edges) * 100
+            examples = pair_examples.get((source_component, target_component), [])[
+                :examples_per_pair
+            ]
+            if examples:
+                example_text = "; ".join(examples)
+                highlights.append(
+                    f"- **{source_component} -> {target_component}**: {edge_count} edge(s),"
+                    f" {share:.1f}% of cross-"
+                    f"component traffic. Example(s): {example_text}"
+                )
+            else:
+                highlights.append(
+                    f"- **{source_component} -> {target_component}**: {edge_count} edge(s),"
+                    f" {share:.1f}% of cross-"
+                    "component traffic."
+                )
+
+        return highlights
 
     def _component_label(self, module_path: Path) -> str:
         """Map module paths to stable component labels."""

@@ -104,6 +104,11 @@ def generate(
         "--guide-template",
         help="Path to guide template YAML (default: .devwayfinder/template.yaml)",
     ),
+    mermaid: bool = typer.Option(
+        False,
+        "--mermaid/--no-mermaid",
+        help="Include Mermaid dependency maps in output (default: disabled)",
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -124,6 +129,7 @@ def generate(
             quality=quality,
             auto=auto,
             guide_template=guide_template,
+            include_mermaid=mermaid,
             verbose=verbose,
         )
     )
@@ -172,6 +178,11 @@ def guide(
         "--no-llm",
         help="Force heuristic-only mode",
     ),
+    mermaid: bool = typer.Option(
+        False,
+        "--mermaid/--no-mermaid",
+        help="Include Mermaid dependency maps in output (default: disabled)",
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -196,6 +207,7 @@ def guide(
             quality=quality,
             auto=auto,
             guide_template=None,
+            include_mermaid=mermaid,
             verbose=verbose,
             run_report_path=str(run_report),
         )
@@ -214,6 +226,7 @@ async def _generate_async(
     quality: str,
     auto: bool,
     guide_template: str | None,
+    include_mermaid: bool,
     verbose: bool,
     run_report_path: str | None = None,
 ) -> None:
@@ -325,7 +338,7 @@ async def _generate_async(
                 quality_profile=quality_profile,
                 include_hidden=include_hidden,
                 exclude_patterns=merged_excludes,
-                include_mermaid=True,
+                include_mermaid=include_mermaid,
                 template_path=Path(guide_template).resolve() if guide_template else None,
             )
             generator = GuideGenerator(

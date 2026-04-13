@@ -285,6 +285,148 @@ class ContextBuilder:
             },
         )
 
+    def for_dependency_landscape(
+        self,
+        project: Project,
+        graph: DependencyGraph,
+        max_components: int = 10,
+        max_links: int = 10,
+    ) -> SummarizationContext:
+        """Build context for dependency interaction and workflow summarization."""
+        component_modules: dict[str, list[Module]] = {}
+        component_edges: dict[tuple[str, str], int] = {}
+        edge_examples: dict[tuple[str, str], list[str]] = {}
+        internal_edges = 0
+
+        for module in project.modules.values():
+            component = self._component_label_for_path(module.path, project.root_path)
+            component_modules.setdefault(component, []).append(module)
+
+        for source, target, kind in graph.iter_edges():
+            source_component = self._component_label_for_path(source.path, project.root_path)
+            target_component = self._component_label_for_path(target.path, project.root_path)
+            if source_component == target_component:
+                internal_edges += 1
+                continue
+
+            edge_key = (source_component, target_component)
+            component_edges[edge_key] = component_edges.get(edge_key, 0) + 1
+
+            source_rel = self._relative_name(source.path)
+            target_rel = self._relative_name(target.path)
+            example = f"{source_rel} -> {target_rel} ({kind})"
+            bucket = edge_examples.setdefault(edge_key, [])
+            if example not in bucket and len(bucket) < 3:
+                bucket.append(example)
+
+        cross_out: dict[str, int] = dict.fromkeys(component_modules, 0)
+        cross_in: dict[str, int] = dict.fromkeys(component_modules, 0)
+        for (source_component, target_component), edge_count in component_edges.items():
+            cross_out[source_component] = cross_out.get(source_component, 0) + edge_count
+            cross_in[target_component] = cross_in.get(target_component, 0) + edge_count
+
+        ordered_components = sorted(
+            component_modules,
+            key=lambda name: (
+                -(cross_out.get(name, 0) + cross_in.get(name, 0)),
+                -len(component_modules[name]),
+                name,
+            ),
+        )[:max_components]
+
+        component_overview: list[str] = []
+        for component in ordered_components:
+            component_overview.append(
+                f"{component}: {len(component_modules[component])} module(s),"
+                f" out={cross_out.get(component, 0)}, in={cross_in.get(component, 0)}"
+            )
+
+        total_cross_edges = sum(component_edges.values())
+        top_links: list[str] = []
+        for (source_component, target_component), edge_count in sorted(
+            component_edges.items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )[:max_links]:
+            share = (edge_count / max(1, total_cross_edges)) * 100
+            examples = "; ".join(edge_examples.get((source_component, target_component), [])[:2])
+            if examples:
+                top_links.append(
+                    f"{source_component} -> {target_component}: {edge_count} edge(s),"
+                    f" {share:.1f}%"
+                    f"; examples: {examples}"
+                )
+            else:
+                top_links.append(
+                    f"{source_component} -> {target_component}: {edge_count} edge(s), {share:.1f}%"
+                )
+
+        runtime_flows = self._runtime_flow_samples(project, graph)
+        core_modules = [m.name for m in graph.get_core_modules(threshold=3)[:8]]
+
+        ui_focus_modules: list[str] = []
+        ui_focus_keywords = (
+            "ui",
+            "view",
+            "screen",
+            "render",
+            "event",
+            "controller",
+            "route",
+            "state",
+            "workflow",
+        )
+        for module in project.modules.values():
+            rel_name = self._relative_name(module.path).lower()
+            module_name = module.name.lower()
+            if any(keyword in module_name or keyword in rel_name for keyword in ui_focus_keywords):
+                display = self._relative_name(module.path)
+                if display not in ui_focus_modules:
+                    ui_focus_modules.append(display)
+            if len(ui_focus_modules) >= 8:
+                break
+
+        prompt_hints = [
+            "Describe major cross-component interactions using evidence from static dependencies.",
+            "Infer likely workflow slices (startup, event, render, data persistence) only when"
+            " naming signals support the inference.",
+            "Separate observed facts from inferred behavior and call out uncertainty.",
+            "Do not invent files, classes, events, or runtime mechanisms that are not"
+            " grounded in the provided context.",
+        ]
+
+        if ui_focus_modules:
+            prompt_hints.append(
+                "Highlight user-facing interaction moments around UI/event modules if present."
+            )
+
+        risk_markers: list[str] = []
+        if graph.has_cycles():
+            risk_markers.append("Circular dependencies detected")
+        if total_cross_edges == 0:
+            risk_markers.append("No cross-component dependencies detected")
+
+        return SummarizationContext(
+            module_name=f"{project.name} dependency landscape",
+            imports=top_links[: self._IMPORT_LIMIT],
+            exports=component_overview[: self._EXPORT_LIMIT],
+            neighbors=core_modules[: self._NEIGHBOR_LIMIT],
+            metadata={
+                "primary_language": project.primary_language,
+                "module_count": project.module_count,
+                "component_count": len(component_modules),
+                "cross_component_edges": total_cross_edges,
+                "within_component_edges": internal_edges,
+                "component_overview": component_overview,
+                "top_component_links": top_links,
+                "runtime_flow_samples": runtime_flows,
+                "interaction_focus_modules": ui_focus_modules,
+                "analysis_scope": "static_import_and_script_order_edges",
+                "prompt_hints": prompt_hints,
+                "risk_markers": risk_markers,
+            },
+        )
+
     def for_entry_point(
         self,
         module: Module,
@@ -461,3 +603,19 @@ class ContextBuilder:
                 break
 
         return commands
+
+    def _component_label_for_path(self, path: Path, project_root: Path) -> str:
+        """Map module paths to stable component labels."""
+        try:
+            relative = path.relative_to(project_root)
+        except ValueError:
+            return "(external)"
+
+        parts = relative.parts
+        if not parts or len(parts) == 1:
+            return "(root)"
+
+        head = parts[0]
+        if head in {"src", "lib", "app"} and len(parts) >= 3:
+            return f"{head}/{parts[1]}"
+        return head
