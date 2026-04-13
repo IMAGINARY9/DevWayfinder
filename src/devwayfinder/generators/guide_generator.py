@@ -655,10 +655,15 @@ class GuideGenerator:
                         lines.append(f"{step}. Continue with `{rel}` to map core dependencies.")
                         step += 1
 
-            while step <= 3:
-                lines.append(
-                    f"{step}. Review the Architecture section and trace one runtime flow end-to-end."
-                )
+            fallback_steps = [
+                "Review the Architecture section and trace one runtime flow end-to-end.",
+                "Inspect the Dependencies section to map one critical module chain.",
+                "Pick one follow-up code path and annotate its call flow while reading.",
+            ]
+            for fallback in fallback_steps:
+                if step > 3:
+                    break
+                lines.append(f"{step}. {fallback}")
                 step += 1
 
             lines.append("")

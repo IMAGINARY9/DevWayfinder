@@ -234,3 +234,33 @@ For published baseline interpretation, see [PERFORMANCE.md](PERFORMANCE.md).
 - Provider connection issues: use `devwayfinder test-model` first.
 - If generation is slower than expected, run `--no-llm` to isolate analysis throughput.
 - If custom template fails, re-run with `--guide-template` and check YAML schema in [CONFIGURATION.md](CONFIGURATION.md).
+
+---
+
+## 8. Target Evaluation Workflow (LLM Agents)
+
+Use this compact sequence when validating changes against a real project target (for example Stonekeep):
+
+```bash
+# Minimal baseline (heuristic-only)
+devwayfinder guide ../Stonekeep --quality minimal --no-llm \
+  -o ../Stonekeep/.devwayfinder/eval/latest/guide_minimal.md -v
+
+# Detailed auto probe (LLM-first, fallback-safe)
+devwayfinder guide ../Stonekeep --quality detailed --auto \
+  -o ../Stonekeep/.devwayfinder/eval/latest/guide_detailed_auto.md -v
+```
+
+Then copy the per-run report immediately after each run:
+
+```bash
+cp ../Stonekeep/.devwayfinder/run_report.md \
+  ../Stonekeep/.devwayfinder/eval/latest/run_report_<mode>.md
+```
+
+Recommended evaluation checklist:
+
+1. Confirm run reports include `Detail Mode`, provider, coverage, and notes.
+2. Compare `guide_minimal.md` vs `guide_detailed_auto.md` for LLM coverage and depth differences.
+3. Inspect auto-probe diagnostics for completion failures (`empty` or `reasoning-only`).
+4. Validate `Start Here` contains unique, non-duplicated onboarding steps.
