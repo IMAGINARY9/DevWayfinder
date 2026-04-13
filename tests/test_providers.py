@@ -169,6 +169,7 @@ async def test_ollama_uses_discovered_model_for_completion(respx_mock: object) -
 
     assert summary == "ok"
     assert captured_payload.get("model") == "qwen2.5:7b"
+    assert captured_payload.get("think") is False
     await provider.close()
 
 
@@ -183,6 +184,20 @@ async def test_ollama_extracts_message_content_fallback(respx_mock: object) -> N
     summary = await provider.summarize(SummarizationContext(module_name="src/main.py"))
 
     assert summary == "chat variant summary"
+    await provider.close()
+
+
+@pytest.mark.asyncio
+async def test_ollama_extracts_thinking_fallback(respx_mock: object) -> None:
+    """Ollama parsing should use thinking text when response text is missing."""
+    respx_mock.post("http://localhost:11434/api/generate").mock(
+        return_value=httpx.Response(200, json={"response": "", "thinking": "summary fallback"})
+    )
+
+    provider = OllamaProvider(ProviderConfig(provider="ollama"))
+    summary = await provider.summarize(SummarizationContext(module_name="src/main.py"))
+
+    assert summary == "summary fallback"
     await provider.close()
 
 

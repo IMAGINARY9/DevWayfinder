@@ -587,6 +587,14 @@ class GuideGenerator:
                 lines.append("```")
                 lines.append("")
 
+            if component_modules:
+                lines.append("### Component Interaction Matrix")
+                lines.append("")
+                lines.extend(
+                    self._component_dependency_matrix_table(component_modules, component_edges)
+                )
+                lines.append("")
+
             if component_edges:
                 lines.append("### Strongest Component Links")
                 lines.append("")
@@ -875,6 +883,45 @@ class GuideGenerator:
             lines.append("    %% No cross-component edges in selected components")
 
         return "\n".join(lines)
+
+    def _component_dependency_matrix_table(
+        self,
+        component_modules: dict[str, list[Module]],
+        component_edges: dict[tuple[str, str], int],
+        max_components: int = 8,
+    ) -> list[str]:
+        """Render a markdown table for quick human scanning of cross-component edges."""
+        ordered_components = sorted(
+            component_modules.items(),
+            key=lambda item: len(item[1]),
+            reverse=True,
+        )[:max_components]
+        components = [name for name, _ in ordered_components]
+
+        if len(components) < 2:
+            return ["Not enough components to build an interaction matrix."]
+
+        lines: list[str] = [
+            "Cell values are dependency edge counts from row component to column component.",
+            "",
+        ]
+
+        header = "| Source / Target | " + " | ".join(f"`{name}`" for name in components) + " |"
+        divider = "|---|" + "|".join("---" for _ in components) + "|"
+        lines.append(header)
+        lines.append(divider)
+
+        for source in components:
+            row_values: list[str] = []
+            for target in components:
+                if source == target:
+                    row_values.append("-")
+                else:
+                    row_values.append(str(component_edges.get((source, target), 0)))
+
+            lines.append(f"| `{source}` | {' | '.join(row_values)} |")
+
+        return lines
 
     def _component_label(self, module_path: Path) -> str:
         """Map module paths to stable component labels."""

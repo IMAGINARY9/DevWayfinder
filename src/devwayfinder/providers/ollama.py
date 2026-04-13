@@ -58,6 +58,9 @@ class OllamaProvider(BaseProvider):
                     f"{context.to_prompt_context()}"
                 ),
                 "stream": False,
+                # For think-capable local models, force plain response output to avoid
+                # reasoning-only payloads with an empty "response" field.
+                "think": False,
                 "options": {
                     "temperature": self.config.temperature,
                     "num_predict": self.config.max_tokens,
@@ -95,6 +98,8 @@ def _extract_ollama_content(payload: dict[str, Any]) -> str:
 
     # Ollama /api/generate shape.
     candidates.extend(_collect_text_candidates(payload.get("response")))
+    # Some think-capable models emit text into `thinking` when not explicitly disabled.
+    candidates.extend(_collect_text_candidates(payload.get("thinking")))
 
     # Ollama /api/chat shape.
     candidates.extend(_collect_text_candidates(payload.get("message")))
@@ -135,6 +140,7 @@ def _collect_text_candidates(value: Any) -> list[str]:
             "text",
             "output_text",
             "message",
+            "thinking",
             "reasoning",
             "reasoning_content",
         ):
